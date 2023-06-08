@@ -27,6 +27,7 @@ contract DeployBedrockL2ImplContracts is Script {
     Utils utils;
     address deployer;
     Utils.DeployBedrockConfig deployConfig;
+    Utils.AddressesL2ImplementationsConfig addressL2Cfg;
 
     // Implementations
     BaseFeeVault baseFeeVaultImpl;
@@ -99,5 +100,20 @@ contract DeployBedrockL2ImplContracts is Script {
         optimismMintableERC721FactoryImpl = new OptimismMintableERC721Factory(Predeploys.L2_ERC721_BRIDGE, deployConfig.l2ChainId);
         require(address(optimismMintableERC721FactoryImpl.BRIDGE()) == address(Predeploys.L2_ERC721_BRIDGE), "Deploy: optimismMintableERC721Factory l2ERC721BridgeProxy is incorrect");
         require(optimismMintableERC721FactoryImpl.REMOTE_CHAIN_ID() == deployConfig.l2ChainId, "Deploy: optimismMintableERC721Factory chain ID is incorrect");
+
+        // Publish L2 implementation contract addresses
+        addressL2Cfg.BaseFeeVault = address(baseFeeVaultImpl);
+        addressL2Cfg.GasPriceOracle = address(gasPriceOracleImpl);
+        addressL2Cfg.L1Block = address(l1BlockImpl);
+        addressL2Cfg.L1FeeVault = address(l1FeeVaultImpl);
+        addressL2Cfg.L2CrossDomainMessenger = address(l2CrossDomainMessengerImpl);
+        addressL2Cfg.L2ERC721Bridge = address(l2ERC721BridgeImpl);
+        addressL2Cfg.L2StandardBridge = address(l2StandardBridgeImpl);
+        addressL2Cfg.L2ToL1MessagePasser = address(l2ToL1MessagePasserImpl);
+        addressL2Cfg.SequencerFeeVault = address(sequencerFeeVaultImpl);
+        addressL2Cfg.OptimismMintableERC20Factory = address(optimismMintableERC20FactoryImpl);
+        addressL2Cfg.OptimismMintableERC721Factory = address(optimismMintableERC721FactoryImpl);
+
+        utils.writeImplAddressesL2File(addressL2Cfg);
     }
 }
