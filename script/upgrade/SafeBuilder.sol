@@ -9,7 +9,7 @@ import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGno
 import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
 import { GlobalConstants } from "@eth-optimism-bedrock/scripts/universal/GlobalConstants.sol";
 import { ProxyAdmin } from "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
-import "script/deploy/Utils.sol";
+// import "script/deploy/Utils.sol";
 
 /**
  * @title SafeBuilder
@@ -105,14 +105,15 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
      *         all of the signers have used this script.
      */
     function _run(address _safe) public returns (bool) {
-        Utils addressUtils = new Utils();
-        Utils.AddressesConfig memory addressesCfg = addressUtils.readAddressesFile();
+        // Utils addressUtils = new Utils();
+        // Utils.AddressesConfig memory addressesCfg = addressUtils.readAddressesFile();
+        address optimismPortal = 0x805fbEDB43E814b2216ce6926A0A19bdeDb0C8Cd;
 
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = buildCalldata();
 
         // Compute the safe transaction hash
-        bytes32 hash = _getTransactionHash(_safe, addressesCfg.OptimismPortalProxy);
+        bytes32 hash = _getTransactionHash(_safe, optimismPortal);
 
         // Send a transaction to approve the hash
         safe.approveHash(hash);
@@ -138,7 +139,7 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
             bytes memory signatures = buildSignatures();
 
             bool success = safe.execTransaction({
-                to: addressesCfg.OptimismPortalProxy,
+                to: optimismPortal,
                 value: 0,
                 data: data,
                 operation: Enum.Operation.Call,
@@ -156,7 +157,7 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
                 _data: abi.encodeCall(
                     safe.execTransaction,
                     (
-                        addressesCfg.OptimismPortalProxy,
+                        optimismPortal,
                         0,
                         data,
                         Enum.Operation.Call,
@@ -206,3 +207,4 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
         return signatures;
     }
 }
+
