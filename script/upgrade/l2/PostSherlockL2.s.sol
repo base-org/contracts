@@ -247,7 +247,7 @@ contract PostSherlockL2 is SafeBuilder {
     }
 
     function encodeUpgradeCall(address proxy, address newImplementation) internal pure returns (bytes memory) {
-        uint64 gasLimit = 1000000; // TODO: tune this
+        uint64 gasLimit = 300000;
 
         return abi.encodeCall(
             OptimismPortal.depositTransaction,
