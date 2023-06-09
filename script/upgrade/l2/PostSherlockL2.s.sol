@@ -137,36 +137,6 @@ contract PostSherlockL2 is SafeBuilder {
     }
 
     /**
-     * @notice Test coverage of the logic. Should only run on goerli but other chains
-     *         could be added.
-     */
-    function test_script_succeeds() skipWhenNotForking external {
-        address _safe;
-
-        if (block.chainid == BASE_GOERLI) {
-            _safe = 0xE534ccA2753aCFbcDBCeB2291F596fc60495257e;
-        }
-
-        require(_safe != address(0));
-
-        address[] memory owners = IGnosisSafe(payable(_safe)).getOwners();
-
-        for (uint256 i; i < owners.length; i++) {
-            address owner = owners[i];
-            vm.startBroadcast(owner);
-            bool success = _run(_safe);
-            vm.stopBroadcast();
-
-            if (success) {
-                console.log("tx success");
-                break;
-            }
-        }
-
-        _postCheck();
-    }
-
-    /**
      * @notice Builds the calldata that the multisig needs to make for the upgrade to happen.
      *         A total of 9 calls are made to the proxy admin to upgrade the implementations
      *         of the predeploys.
@@ -181,122 +151,80 @@ contract PostSherlockL2 is SafeBuilder {
         calls[0] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.BaseFeeVault), impl.BaseFeeVault)
-            )
+            callData: encodeUpgradeCall(prox.BaseFeeVault, impl.BaseFeeVault)
         });
 
         // Upgrade the GasPriceOracle
         calls[1] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.GasPriceOracle), impl.GasPriceOracle)
-            )
+            callData: encodeUpgradeCall(prox.GasPriceOracle, impl.GasPriceOracle)
         });
 
         // Upgrade the L1Block predeploy
         calls[2] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.L1Block), impl.L1Block)
-            )
+            callData: encodeUpgradeCall(prox.L1Block, impl.L1Block)
         });
 
         // Upgrade the L1FeeVault
         calls[3] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.L1FeeVault), impl.L1FeeVault)
-            )
+            callData: encodeUpgradeCall(prox.L1FeeVault, impl.L1FeeVault)
         });
 
         // Upgrade the L2CrossDomainMessenger
         calls[4] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.L2CrossDomainMessenger), impl.L2CrossDomainMessenger)
-            )
+            callData: encodeUpgradeCall(prox.L2CrossDomainMessenger, impl.L2CrossDomainMessenger)
         });
 
         // Upgrade the L2ERC721Bridge
         calls[5] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.L2ERC721Bridge), impl.L2ERC721Bridge)
-            )
+            callData: encodeUpgradeCall(prox.L2ERC721Bridge, impl.L2ERC721Bridge)
         });
 
         // Upgrade the L2StandardBridge
         calls[6] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.L2StandardBridge), impl.L2StandardBridge)
-            )
+            callData: encodeUpgradeCall(prox.L2StandardBridge, impl.L2StandardBridge)
         });
 
         // Upgrade the L2ToL1MessagePasser
         calls[7] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.L2ToL1MessagePasser), impl.L2ToL1MessagePasser)
-            )
+            callData: encodeUpgradeCall(prox.L2ToL1MessagePasser, impl.L2ToL1MessagePasser)
         });
 
         // Upgrade the SequencerFeeVault
         calls[8] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.SequencerFeeVault), impl.SequencerFeeVault)
-            )
+            callData: encodeUpgradeCall(prox.SequencerFeeVault, impl.SequencerFeeVault)
         });
 
         // Upgrade the OptimismMintableERC20Factory
         calls[9] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.OptimismMintableERC20Factory), impl.OptimismMintableERC20Factory)
-            )
+            callData: encodeUpgradeCall(prox.OptimismMintableERC20Factory, impl.OptimismMintableERC20Factory)
         });
 
         // Upgrade the OptimismMintableERC721Factory
         calls[10] = IMulticall3.Call3({
             target: Predeploys.PROXY_ADMIN,
             allowFailure: false,
-            callData: abi.encodeCall(
-                ProxyAdmin.upgrade,
-                (payable(prox.OptimismMintableERC721Factory), impl.OptimismMintableERC721Factory)
-            )
+            callData: encodeUpgradeCall(prox.OptimismMintableERC721Factory, impl.OptimismMintableERC721Factory)
         });
 
-        return abi.encodeCall(
-            OptimismPortal.depositTransaction,
-            (
-                address(IMulticall3),
-                uint256(0),
-                uint64(1000000),
-                false,
-                abi.encodeCall(IMulticall3.aggregate3, (calls))
-            )
-        );
+        return abi.encodeCall(IMulticall3.aggregate3, (calls));
     }
 
     /**
@@ -315,5 +243,17 @@ contract PostSherlockL2 is SafeBuilder {
         ContractSet memory set = proxies[block.chainid];
         require(set.BaseFeeVault != address(0), "no proxies for this network");
         return set;
+    }
+
+    function encodeUpgradeCall(address proxy, address newImplementation) internal pure returns (bytes memory) {
+        uint64 gasLimit = 1000000; // TODO: tune this
+
+        return abi.encodeCall(
+            OptimismPortal.depositTransaction,
+            (Predeploys.PROXY_ADMIN, uint256(0), gasLimit, false, abi.encodeCall(
+                ProxyAdmin.upgrade,
+                (payable(proxy), newImplementation)
+            ))
+        );
     }
 }
