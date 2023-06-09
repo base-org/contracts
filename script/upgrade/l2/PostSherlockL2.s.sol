@@ -15,10 +15,7 @@ import { SafeBuilder } from "script/upgrade/SafeBuilder.sol";
  * @notice Upgrades the L2 contracts.
  */
 contract PostSherlockL2 is SafeBuilder {
-    /**
-     * @notice BASE Goerli chain id.
-     */
-    uint256 constant BASE_GOERLI = 84531;
+    uint256 immutable CHAIN_ID;
 
     /**
      * @notice The proxy admin predeploy on L2.
@@ -68,6 +65,10 @@ contract PostSherlockL2 is SafeBuilder {
     string constant internal OptimismMintableERC20Factory_Version = "1.1.0";
     string constant internal OptimismMintableERC721Factory_Version = "1.2.0";
 
+    constructor(uint256 _l2ChainId) {
+        CHAIN_ID = _l2ChainId;
+    }
+
     /**
      * @notice Place the contract addresses in storage so they can be used when building calldata.
      */
@@ -75,7 +76,7 @@ contract PostSherlockL2 is SafeBuilder {
         Utils addressUtils = new Utils();
         Utils.AddressesL2ImplementationsConfig memory addressL2Cfg = addressUtils.readImplAddressesL2File();
 
-        implementations[BASE_GOERLI] = ContractSet({
+        implementations[CHAIN_ID] = ContractSet({
             BaseFeeVault: addressL2Cfg.BaseFeeVault,
             GasPriceOracle: addressL2Cfg.GasPriceOracle,
             L1Block: addressL2Cfg.L1Block,
@@ -89,7 +90,7 @@ contract PostSherlockL2 is SafeBuilder {
             OptimismMintableERC721Factory: addressL2Cfg.OptimismMintableERC721Factory
         });
 
-        proxies[BASE_GOERLI] = ContractSet({
+        proxies[CHAIN_ID] = ContractSet({
             BaseFeeVault: Predeploys.BASE_FEE_VAULT,
             GasPriceOracle: Predeploys.GAS_PRICE_ORACLE,
             L1Block: Predeploys.L1_BLOCK_ATTRIBUTES,
@@ -231,7 +232,7 @@ contract PostSherlockL2 is SafeBuilder {
      * @notice Returns the ContractSet that represents the implementations for a given network.
      */
     function getImplementations() internal view returns (ContractSet memory) {
-        ContractSet memory set = implementations[block.chainid];
+        ContractSet memory set = implementations[CHAIN_ID];
         require(set.BaseFeeVault != address(0), "no implementations for this network");
         return set;
     }
@@ -240,7 +241,7 @@ contract PostSherlockL2 is SafeBuilder {
      * @notice Returns the ContractSet that represents the proxies for a given network.
      */
     function getProxies() internal view returns (ContractSet memory) {
-        ContractSet memory set = proxies[block.chainid];
+        ContractSet memory set = proxies[CHAIN_ID];
         require(set.BaseFeeVault != address(0), "no proxies for this network");
         return set;
     }

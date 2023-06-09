@@ -201,4 +201,3 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
         return signatures;
     }
 }
-
