@@ -8,8 +8,6 @@ import { LibSort } from "@eth-optimism-bedrock/scripts/libraries/LibSort.sol";
 import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
 import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
 import { GlobalConstants } from "@eth-optimism-bedrock/scripts/universal/GlobalConstants.sol";
-import { ProxyAdmin } from "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
-// import "script/deploy/Utils.sol";
 
 /**
  * @title SafeBuilder
@@ -71,7 +69,7 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
     /**
      * @notice Computes the safe transaction hash for the provided safe and proxy admin.
      */
-    function _getTransactionHash(address _safe, address _optimismPortal) internal view returns (bytes32) {
+    function _getTransactionHash(address _safe) internal view returns (bytes32) {
         // Ensure that the required contracts exist
         require(address(multicall).code.length > 0, "multicall3 not deployed");
         require(_safe.code.length > 0, "no code at safe address");
@@ -83,10 +81,10 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
 
         // Compute the safe transaction hash
         bytes32 hash = safe.getTransactionHash({
-            to: _optimismPortal,
+            to: address(multicall),
             value: 0,
             data: data,
-            operation: Enum.Operation.Call,
+            operation: Enum.Operation.DelegateCall,
             safeTxGas: 0,
             baseGas: 0,
             gasPrice: 0,
@@ -105,15 +103,11 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
      *         all of the signers have used this script.
      */
     function _run(address _safe) public returns (bool) {
-        // Utils addressUtils = new Utils();
-        // Utils.AddressesConfig memory addressesCfg = addressUtils.readAddressesFile();
-        address optimismPortal = 0x805fbEDB43E814b2216ce6926A0A19bdeDb0C8Cd;
-
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = buildCalldata();
 
         // Compute the safe transaction hash
-        bytes32 hash = _getTransactionHash(_safe, optimismPortal);
+        bytes32 hash = _getTransactionHash(_safe);
 
         // Send a transaction to approve the hash
         safe.approveHash(hash);
@@ -139,10 +133,10 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
             bytes memory signatures = buildSignatures();
 
             bool success = safe.execTransaction({
-                to: optimismPortal,
+                to: address(multicall),
                 value: 0,
                 data: data,
-                operation: Enum.Operation.Call,
+                operation: Enum.Operation.DelegateCall,
                 safeTxGas: 0,
                 baseGas: 0,
                 gasPrice: 0,
@@ -157,10 +151,10 @@ abstract contract SafeBuilder is EnhancedScript, GlobalConstants {
                 _data: abi.encodeCall(
                     safe.execTransaction,
                     (
-                        optimismPortal,
+                        address(multicall),
                         0,
                         data,
-                        Enum.Operation.Call,
+                        Enum.Operation.DelegateCall,
                         0,
                         0,
                         0,
