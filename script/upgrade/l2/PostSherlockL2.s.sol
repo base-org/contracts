@@ -30,9 +30,9 @@ contract PostSherlockL2 is SafeBuilder {
         address L2ERC721Bridge;
         address L2StandardBridge;
         address L2ToL1MessagePasser;
-        address SequencerFeeVault;
         address OptimismMintableERC20Factory;
         address OptimismMintableERC721Factory;
+        address SequencerFeeVault;
     }
 
     /**
@@ -80,9 +80,9 @@ contract PostSherlockL2 is SafeBuilder {
             L2ERC721Bridge: addressL2Cfg.L2ERC721Bridge,
             L2StandardBridge: addressL2Cfg.L2StandardBridge,
             L2ToL1MessagePasser: addressL2Cfg.L2ToL1MessagePasser,
-            SequencerFeeVault: addressL2Cfg.SequencerFeeVault,
             OptimismMintableERC20Factory: addressL2Cfg.OptimismMintableERC20Factory,
-            OptimismMintableERC721Factory: addressL2Cfg.OptimismMintableERC721Factory
+            OptimismMintableERC721Factory: addressL2Cfg.OptimismMintableERC721Factory,
+            SequencerFeeVault: addressL2Cfg.SequencerFeeVault
         });
 
         proxies[CHAIN_ID] = ContractSet({
@@ -94,9 +94,9 @@ contract PostSherlockL2 is SafeBuilder {
             L2ERC721Bridge: Predeploys.L2_ERC721_BRIDGE,
             L2StandardBridge: Predeploys.L2_STANDARD_BRIDGE,
             L2ToL1MessagePasser: Predeploys.L2_TO_L1_MESSAGE_PASSER,
-            SequencerFeeVault: Predeploys.SEQUENCER_FEE_WALLET,
             OptimismMintableERC20Factory: Predeploys.OPTIMISM_MINTABLE_ERC20_FACTORY,
-            OptimismMintableERC721Factory: Predeploys.OPTIMISM_MINTABLE_ERC721_FACTORY
+            OptimismMintableERC721Factory: Predeploys.OPTIMISM_MINTABLE_ERC721_FACTORY,
+            SequencerFeeVault: Predeploys.SEQUENCER_FEE_WALLET
         });
     }
 
