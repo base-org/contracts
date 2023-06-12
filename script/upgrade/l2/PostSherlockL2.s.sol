@@ -48,15 +48,15 @@ contract PostSherlockL2 is SafeBuilder {
     /**
      * @notice The expected versions for the contracts to be upgraded to.
      */
-    string constant internal BaseFeeVault_Version = "1.1.0";
+    string constant internal BaseFeeVault_Version = "1.2.0";
     string constant internal GasPriceOracle_Version = "1.0.0";
     string constant internal L1Block_Version = "1.0.0";
-    string constant internal L1FeeVault_Version = "1.1.0";
+    string constant internal L1FeeVault_Version = "1.2.0";
     string constant internal L2CrossDomainMessenger_Version = "1.4.0";
     string constant internal L2ERC721Bridge_Version = "1.1.0";
     string constant internal L2StandardBridge_Version = "1.1.0";
     string constant internal L2ToL1MessagePasser_Version = "1.0.0";
-    string constant internal SequencerFeeVault_Version = "1.1.0";
+    string constant internal SequencerFeeVault_Version = "1.2.0";
     string constant internal OptimismMintableERC20Factory_Version = "1.1.0";
     string constant internal OptimismMintableERC721Factory_Version = "1.2.0";
 
@@ -119,7 +119,7 @@ contract PostSherlockL2 is SafeBuilder {
 
         // Check that the codehashes of all implementations match the proxies set implementations.
         ContractSet memory impl = getImplementations();
-        ProxyAdmin proxyAdmin = ProxyAdmin(0x4200000000000000000000000000000000000018);
+        ProxyAdmin proxyAdmin = ProxyAdmin(Predeploys.PROXY_ADMIN);
         require(proxyAdmin.getProxyImplementation(prox.BaseFeeVault).codehash == impl.BaseFeeVault.codehash);
         require(proxyAdmin.getProxyImplementation(prox.GasPriceOracle).codehash == impl.GasPriceOracle.codehash);
         require(proxyAdmin.getProxyImplementation(prox.L1Block).codehash == impl.L1Block.codehash);
