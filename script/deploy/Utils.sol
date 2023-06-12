@@ -53,9 +53,9 @@ contract Utils is Script {
         address L2ERC721Bridge;
         address L2StandardBridge;
         address L2ToL1MessagePasser;
-        address SequencerFeeVault;
         address OptimismMintableERC20Factory;
         address OptimismMintableERC721Factory;
+        address SequencerFeeVault;
     }
 
     function getDeployBedrockConfig() external view returns(DeployBedrockConfig memory) {
