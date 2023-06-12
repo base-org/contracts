@@ -44,6 +44,20 @@ contract Utils is Script {
         address SystemDictatorProxy;
     }
 
+    struct AddressesL2ImplementationsConfig {
+        address BaseFeeVault;
+        address GasPriceOracle;
+        address L1Block;
+        address L1FeeVault;
+        address L2CrossDomainMessenger;
+        address L2ERC721Bridge;
+        address L2StandardBridge;
+        address L2ToL1MessagePasser;
+        address SequencerFeeVault;
+        address OptimismMintableERC20Factory;
+        address OptimismMintableERC721Factory;
+    }
+
     function getDeployBedrockConfig() external view returns(DeployBedrockConfig memory) {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/inputs/foundry-config.json");
@@ -58,6 +72,14 @@ contract Utils is Script {
         string memory addressJson = vm.readFile(addressPath);
         bytes memory addressRaw = vm.parseJson(addressJson);
         return abi.decode(addressRaw, (AddressesConfig));
+    }
+
+    function readImplAddressesL2File() external view returns (AddressesL2ImplementationsConfig memory) {
+        string memory root = vm.projectRoot();
+        string memory addressPath = string.concat(root, "/inputs/addresses-l2.json");
+        string memory addressJson = vm.readFile(addressPath);
+        bytes memory addressRaw = vm.parseJson(addressJson);
+        return abi.decode(addressRaw, (AddressesL2ImplementationsConfig));
     }
 
     function writeAddressesFile(AddressesConfig memory cfg) external {
@@ -79,5 +101,25 @@ contract Utils is Script {
         string memory finalJson = vm.serializeUint(json, "BlockTimestamp", cfg.BlockTimestamp);
 
         finalJson.write(string.concat("unsorted.json"));
+    }
+
+    function writeImplAddressesL2File(AddressesL2ImplementationsConfig memory cfg) external {
+        string memory json = "";
+
+        vm.serializeAddress(json, "BaseFeeVault", cfg.BaseFeeVault);
+        vm.serializeAddress(json, "GasPriceOracle", cfg.GasPriceOracle);
+        vm.serializeAddress(json, "L1Block", cfg.L1Block);
+        vm.serializeAddress(json, "L1FeeVault", cfg.L1FeeVault);
+        vm.serializeAddress(json, "L2CrossDomainMessenger", cfg.L2CrossDomainMessenger);
+        vm.serializeAddress(json, "L2ERC721Bridge", cfg.L2ERC721Bridge);
+        vm.serializeAddress(json, "L2StandardBridge", cfg.L2StandardBridge);
+        vm.serializeAddress(json, "L2ToL1MessagePasser", cfg.L2ToL1MessagePasser);
+        vm.serializeAddress(json, "SequencerFeeVault", cfg.SequencerFeeVault);
+        vm.serializeAddress(json, "OptimismMintableERC20Factory", cfg.OptimismMintableERC20Factory);
+        string memory finalJson = vm.serializeAddress(
+            json, "OptimismMintableERC721Factory", cfg.OptimismMintableERC721Factory
+        );
+
+        finalJson.write(string.concat("unsortedl2Impls.json"));
     }
 }
