@@ -47,10 +47,15 @@ contract DeployBedrockL2ImplContracts is Script {
         Utils.AddressesConfig memory addressCfg = utils.readAddressesFile();
         deployConfig = utils.getDeployBedrockConfig();
         deployer = deployConfig.deployerAddress;
+        uint256 minWithdrawalAmount = 2 ether;
 
         // Deploy BaseFeeVault
         vm.broadcast(deployer);
-        baseFeeVaultImpl = new BaseFeeVault(deployConfig.baseFeeVaultRecipient);
+        baseFeeVaultImpl = new BaseFeeVault(
+            deployConfig.baseFeeVaultRecipient,
+            minWithdrawalAmount,
+            FeeVault.WithdrawalNetwork.L2
+        );
 
         // Deploy GasPriceOracle
         vm.broadcast(deployer);
@@ -62,7 +67,11 @@ contract DeployBedrockL2ImplContracts is Script {
 
         // Deploy L1FeeVault
         vm.broadcast(deployer);
-        l1FeeVaultImpl = new L1FeeVault(deployConfig.l1FeeVaultRecipient);
+        l1FeeVaultImpl = new L1FeeVault(
+            deployConfig.l1FeeVaultRecipient,
+            minWithdrawalAmount,
+            FeeVault.WithdrawalNetwork.L2
+        );
 
         // Deploy L2CrossDomainMessenger
         vm.broadcast(deployer);
@@ -88,7 +97,11 @@ contract DeployBedrockL2ImplContracts is Script {
 
         // Deploy SequencerFeeVault
         vm.broadcast(deployer);
-        sequencerFeeVaultImpl = new SequencerFeeVault(deployConfig.sequencerFeeVaultRecipient);
+        sequencerFeeVaultImpl = new SequencerFeeVault(
+            deployConfig.sequencerFeeVaultRecipient,
+            minWithdrawalAmount,
+            FeeVault.WithdrawalNetwork.L2
+        );
 
         // Deploy OptimismMintableERC20Factory
         vm.broadcast(deployer);
