@@ -1,0 +1,7 @@
+lib/**
+cache/***
+out/**
+
+.env
+.gitmodules
+
