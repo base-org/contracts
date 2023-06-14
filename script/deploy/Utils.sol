@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.15;
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -20,11 +20,13 @@ contract Utils is Script {
         address l1FeeVaultRecipient;
         uint256 l2BlockTime;
         uint256 l2ChainId;
-        uint64 l2GenesisBlockGasLimit;
+        uint64  l2GenesisBlockGasLimit;
         address l2OutputOracleChallenger;
         address l2OutputOracleProposer;
         uint256 l2OutputOracleStartingBlockNumber;
+        uint256 l2OutputOracleStartingTimestamp;
         uint256 l2OutputOracleSubmissionInterval;
+        address optimismPortalGuardian;
         address p2pSequencerAddress;
         address proxyAdminOwner;
         address sequencerFeeVaultRecipient;
@@ -32,8 +34,6 @@ contract Utils is Script {
 
     struct AddressesConfig {
         address AddressManager;
-        uint BlockNumber;
-        uint BlockTimestamp;
         address L1CrossDomainMessengerProxy;
         address L1ERC721BridgeProxy;
         address L1StandardBridgeProxy;
@@ -96,10 +96,8 @@ contract Utils is Script {
         vm.serializeAddress(json, "OptimismMintableERC20FactoryProxy", cfg.OptimismMintableERC20FactoryProxy);
         vm.serializeAddress(json, "L1ERC721BridgeProxy", cfg.L1ERC721BridgeProxy);
         vm.serializeAddress(json, "SystemConfigProxy", cfg.SystemConfigProxy);
-        vm.serializeAddress(json, "SystemDictatorProxy", cfg.SystemDictatorProxy);
-
-        vm.serializeUint(json, "BlockNumber", cfg.BlockNumber);
-        string memory finalJson = vm.serializeUint(json, "BlockTimestamp", cfg.BlockTimestamp);
+        
+        string memory finalJson = vm.serializeAddress(json, "SystemDictatorProxy", cfg.SystemDictatorProxy);
 
         finalJson.write(string.concat("unsorted.json"));
     }
