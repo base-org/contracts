@@ -16,6 +16,7 @@ contract Utils is Script {
         uint256 finalizationPeriodSeconds;
         uint256 gasPriceOracleOverhead;
         uint256 gasPriceOracleScalar;
+        uint256 l1ChainId;
         address l1FeeVaultRecipient;
         uint256 l2BlockTime;
         uint256 l2ChainId;
