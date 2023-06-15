@@ -165,12 +165,12 @@ contract DeployBedrock is Script {
         vm.broadcast(deployer);
         optimismPortalImpl = new OptimismPortal(
             L2OutputOracle(address(l2OutputOracleProxy)),
-            deployConfig.optimismPortalGuardian,
+            deployConfig.portalGuardian,
             true,
             SystemConfig(address(systemConfigProxy))
         );
         require(address(optimismPortalImpl.L2_ORACLE()) == address(l2OutputOracleProxy), "Deploy: optimismPortal l2OutputOracle proxy is incorrect");
-        require(optimismPortalImpl.GUARDIAN() == deployConfig.optimismPortalGuardian, "Deploy: optimismPortal GUARDIAN is incorrect");
+        require(optimismPortalImpl.GUARDIAN() == deployConfig.portalGuardian, "Deploy: optimismPortal GUARDIAN is incorrect");
         require(optimismPortalImpl.paused() == true, "Deploy: optimismPortal pause state is incorrect");
         require(address(optimismPortalImpl.SYSTEM_CONFIG()) == address(systemConfigProxy), "Deploy: optimismPortal SystemConfig is incorrect");
 
