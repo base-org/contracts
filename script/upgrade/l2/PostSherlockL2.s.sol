@@ -8,7 +8,7 @@ import { Predeploys } from "@eth-optimism-bedrock/contracts/libraries/Predeploys
 import { ProxyAdmin } from "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
 import { OptimismPortal } from "@eth-optimism-bedrock/contracts/L1/OptimismPortal.sol";
 import "script/deploy/Utils.sol";
-import { SafeBuilder } from "script/upgrade/SafeBuilder.sol";
+import { SafeBuilder } from "script/SafeBuilder.sol";
 
 /**
  * @title PostSherlockL2
