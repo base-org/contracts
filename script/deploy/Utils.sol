@@ -26,8 +26,8 @@ contract Utils is Script {
         uint256 l2OutputOracleStartingBlockNumber;
         uint256 l2OutputOracleStartingTimestamp;
         uint256 l2OutputOracleSubmissionInterval;
-        address optimismPortalGuardian;
         address p2pSequencerAddress;
+        address portalGuardian;
         address proxyAdminOwner;
         address sequencerFeeVaultRecipient;
     }
