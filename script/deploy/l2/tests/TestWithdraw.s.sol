@@ -12,19 +12,10 @@ import {L2ERC721Bridge} from "@eth-optimism-bedrock/contracts/L2/L2ERC721Bridge.
 contract TestWithdraw is Script {
     function run(
         address _tester,
-        address _l2erc20,
         address _l1erc721,
         address _l2erc721
     ) public {
         vm.startBroadcast(_tester);
-        L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).withdraw(
-            _l2erc20,
-            10_000 ether,
-            200_000,
-            bytes("")
-        );
-        console.log("erc20 withdrawal initiated");
-
         L2ERC721Bridge(payable(Predeploys.L2_ERC721_BRIDGE)).bridgeERC721(
             _l2erc721,
             _l1erc721,
