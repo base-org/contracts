@@ -96,13 +96,13 @@ func createSigner(privateKey, mnemonic, hdPath string) (signer, error) {
 	}
 	wallets := hub.Wallets()
 	if len(wallets) == 0 {
-		return nil, fmt.Errorf("no legders found")
+		return nil, fmt.Errorf("no ledgers found, please connect your ledger")
 	} else if len(wallets) > 1 {
-		return nil, fmt.Errorf("multiple ledgers found")
+		return nil, fmt.Errorf("multiple ledgers found, please use one ledger at a time")
 	}
 	wallet := wallets[0]
 	if err := wallet.Open(""); err != nil {
-		return nil, fmt.Errorf("error opening ledger: %w", err)
+		return nil, fmt.Errorf("error opening ledger (have you unlocked?): %w", err)
 	}
 	account, err := wallet.Derive(path, true)
 	if err != nil {
