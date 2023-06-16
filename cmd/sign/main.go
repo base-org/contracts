@@ -90,11 +90,11 @@ func createSigner(privateKey, mnemonic, hdPath string) (signer, error) {
 	}
 
 	// assume using a ledger
-	hub, err := usbwallet.NewLedgerHub()
+	ledgerHub, err := usbwallet.NewLedgerHub()
 	if err != nil {
 		return nil, fmt.Errorf("error starting ledger: %w", err)
 	}
-	wallets := hub.Wallets()
+	wallets := ledgerHub.Wallets()
 	if len(wallets) == 0 {
 		return nil, fmt.Errorf("no ledgers found, please connect your ledger")
 	} else if len(wallets) > 1 {
