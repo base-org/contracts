@@ -31,6 +31,11 @@ abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBa
     function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
 
     /**
+     * @notice Returns the safe address to execute the transaction from
+     */
+    function _ownerSafe() internal virtual view returns (address);
+
+    /**
      * -----------------------------------------------------------
      * Implemented Functions
      * -----------------------------------------------------------
@@ -43,8 +48,8 @@ abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBa
      * of members of the multisig that will execute the transaction. Signers will pass their
      * signature to the final signer of this multisig.
      */
-    function sign(address _safe) public returns (bool) {
-        _printDataToSign(_safe, _buildCalls());
+    function sign() public returns (bool) {
+        _printDataToSign(_ownerSafe(), _buildCalls());
         return true;
     }
 
@@ -54,9 +59,9 @@ abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBa
      * Execute the transaction. This method should be called by the final member of the
      * multisig that will execute the transaction. Signatures from step 1 are required.
      */
-    function run(address _safe, bytes memory _signatures) public returns (bool) {
+    function run(bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();
-        bool success = _executeTransaction(_safe, _buildCalls(), _signatures);
+        bool success = _executeTransaction(_ownerSafe(), _buildCalls(), _signatures);
         if (success) _postCheck();
         return success;
     }
