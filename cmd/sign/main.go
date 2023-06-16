@@ -49,7 +49,7 @@ func main() {
 	}
 	hash := common.FromHex(strings.TrimSpace(string(bytes)))
 	if len(hash) != 66 {
-		log.Fatalf("Expected EIP-712 hex string with 66 bytes, got %s", string(bytes))
+		log.Fatalf("Expected EIP-712 hex string with 66 bytes, got %d bytes, value: %s", len(bytes), string(bytes))
 	}
 
 	s, err := createSigner(privateKey, mnemonic, hdPath)
