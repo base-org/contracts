@@ -12,7 +12,7 @@ import { GlobalConstants } from "@eth-optimism-bedrock/scripts/universal/GlobalC
 
 /**
  * @title NestedMultisigBuilder
- * @notice Modeled from Optimism's SafeBuilder, but built for nested safes.
+ * @notice Modeled from Optimism's SafeBuilder, but built for nested safes (Safes where the signers are other Safes).
  */
 abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, MultisigBase {
     /**
@@ -47,11 +47,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      *
      * Example:
      * --------
-     * Given:
+     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
      *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
      *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
      *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     *  - 3-of-3 nested multisig <n>, signers <m1>, <m2>, <m3>
      * The following signers should run this function:
         - <s1> => send signature to <s3>
         - <s2> => send signature to <s3>
@@ -72,11 +71,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      *
      * Example:
      * --------
-     * Given:
+     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
      *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
      *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
      *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     *  - 3-of-3 nested multisig <n>, signers <m1>, <m2>, <m3>
      * The following signers should run this function:
         - <s3> => using signatures from <s1>, <s2>
         - <s5> => using signature from <s4>
@@ -96,11 +94,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      *
      * Example:
      * --------
-     * Given:
+     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
      *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
      *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
      *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     *  - 3-of-3 nested multisig <n>, signers <m1>, <m2>, <m3>
      * The following signers should run this function:
         - <s7> => send signature to <s9>
         - <s8> => send signature to <s9>
@@ -119,11 +116,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      *
      * Example:
      * --------
-     * Given:
+     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
      *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
      *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
      *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     *  - 3-of-3 nested multisig <n>, signers <m1>, <m2>, <m3>
      * The following signer should run this function:
         - <s9> => using signatures from <s7>, <s8>
      */
