@@ -82,7 +82,7 @@ contract Challenger1of2 {
             "Challenger1of2: must be an approved signer to execute"
         );
 
-	    bytes memory result = Address.functionCall(
+        bytes memory result = Address.functionCall(
             L2_OUTPUT_ORACLE_PROXY,
             _data,
             "Challenger1of2: failed to execute"
