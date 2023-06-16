@@ -24,12 +24,12 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
     /**
      * @notice Follow up assertions to ensure that the script ran to completion.
      */
-    function _postCheck(address _target) internal virtual view;
+    function _postCheck() internal virtual view;
 
     /**
      * @notice Creates the calldata
      */
-    function buildCalldata(address _target) internal virtual view returns (bytes memory);
+    function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
 
     /**
      * -----------------------------------------------------------
@@ -56,9 +56,9 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         - <s2> => send signature to <s3>
         - <s4> => send signature to <s5>
      */
-    function signApproval(address _safe, address _nestedSafe, address _target) public returns (bool) {
-        IMulticall3.Call3 memory call = _generateApproveCall(_safe, _nestedSafe, _target);
-        _printDataToSign(_safe, call);
+    function signApproval(address _safe, address _nestedSafe) public returns (bool) {
+        IMulticall3.Call3 memory call = _generateApproveCall(_safe, _nestedSafe);
+        _printDataToSign(_safe, toArray(call));
         return true;
     }
 
@@ -79,10 +79,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         - <s3> => using signatures from <s1>, <s2>
         - <s5> => using signature from <s4>
      */
-    function runApproval(address _safe, address _nestedSafe, address _target, bytes memory _signatures) public returns (bool) {
+    function runApproval(address _safe, address _nestedSafe, bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();
-        IMulticall3.Call3 memory call = _generateApproveCall(_safe, _nestedSafe, _target);
-        return _executeTransaction(_safe, call, _signatures);
+        IMulticall3.Call3 memory call = _generateApproveCall(_safe, _nestedSafe);
+        return _executeTransaction(_safe, toArray(call), _signatures);
     }
 
     /**
@@ -102,9 +102,9 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         - <s7> => send signature to <s9>
         - <s8> => send signature to <s9>
      */
-    function signTransaction(address _safe, address _nestedSafe, address _target, address[] memory _otherSigners) public returns (bool) {
-        IMulticall3.Call3 memory call = _generateExecuteCall(_safe, _nestedSafe, _target, _otherSigners);
-        _printDataToSign(_safe, call);
+    function signTransaction(address _safe, address _nestedSafe, address[] memory _otherSigners) public returns (bool) {
+        IMulticall3.Call3 memory call = _generateExecuteCall(_safe, _nestedSafe, _otherSigners);
+        _printDataToSign(_safe, toArray(call));
         return true;
     }
 
@@ -123,18 +123,23 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      * The following signer should run this function:
         - <s9> => using signatures from <s7>, <s8>
      */
-    function runTransaction(address _safe, address _nestedSafe, address _target, address[] memory _otherSigners, bytes memory _signatures) public returns (bool) {
+    function runTransaction(address _safe, address _nestedSafe, address[] memory _otherSigners, bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();
-        IMulticall3.Call3 memory call = _generateExecuteCall(_safe, _nestedSafe, _target, _otherSigners);
-        bool success = _executeTransaction(_safe, call, _signatures);
-        if (success) _postCheck(_target);
+        IMulticall3.Call3 memory call = _generateExecuteCall(_safe, _nestedSafe, _otherSigners);
+        bool success = _executeTransaction(_safe, toArray(call), _signatures);
+        if (success) _postCheck();
         return success;
     }
 
-    function _generateApproveCall(address _safe, address _nestedSafe, address _target) internal returns (IMulticall3.Call3 memory) {
+    function _buildCalldata() internal view returns (bytes memory) {
+        IMulticall3.Call3[] memory calls = _buildCalls();
+        return abi.encodeCall(IMulticall3.aggregate3, (calls));
+    }
+
+    function _generateApproveCall(address _safe, address _nestedSafe) internal returns (IMulticall3.Call3 memory) {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         IGnosisSafe nestedSafe = IGnosisSafe(payable(_nestedSafe));
-        bytes memory nestedData = buildCalldata(_target);
+        bytes memory nestedData = _buildCalldata();
         bytes32 nestedHash = _getTransactionHash(_nestedSafe, nestedData);
         console.log("Nested hash:");
         console.logBytes32(nestedHash);
@@ -149,10 +154,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         });
     }
 
-    function _generateExecuteCall(address _safe, address _nestedSafe, address _target, address[] memory _signers) internal returns (IMulticall3.Call3 memory) {
+    function _generateExecuteCall(address _safe, address _nestedSafe, address[] memory _signers) internal returns (IMulticall3.Call3 memory) {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         IGnosisSafe nestedSafe = IGnosisSafe(payable(_nestedSafe));
-        bytes memory nestedData = buildCalldata(_target);
+        bytes memory nestedData = _buildCalldata();
 
         address[] memory allSigners = new address[](_signers.length + 1);
         for (uint256 i; i < _signers.length; i++) {

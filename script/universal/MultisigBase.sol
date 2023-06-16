@@ -36,23 +36,19 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _printDataToSign(address _safe, IMulticall3.Call3 memory _call) internal {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = _call;
-        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
-
+    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal {
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
+
         console.log("Data to sign:");
         console.log("vvvvvvvv");
         console.logBytes(txData);
         console.log("^^^^^^^^");
     }
 
-    function _executeTransaction(address _safe, IMulticall3.Call3 memory _call, bytes memory _signatures) internal returns (bool) {
+    function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures) internal returns (bool) {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = _call;
-        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
 
         uint8 v = 1;
@@ -72,6 +68,12 @@ abstract contract MultisigBase is CommonBase {
             refundReceiver: payable(address(0)),
             signatures: sortSignatures(_signatures, hash)
         });
+    }
+
+    function toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = call;
+        return calls;
     }
 
     function addressSignatures(address[] memory _addresses) internal view returns (bytes memory) {
