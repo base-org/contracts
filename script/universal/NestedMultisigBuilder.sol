@@ -107,8 +107,8 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         - <s7> => send signature to <s9>
         - <s8> => send signature to <s9>
      */
-    function signTransaction(address _safe, address[] memory _otherSafes) public returns (bool) {
-        IMulticall3.Call3 memory call = _generateExecuteCall(_safe, _otherSafes);
+    function signTransaction(address _safe) public returns (bool) {
+        IMulticall3.Call3 memory call = _generateExecuteCall(_safe);
         _printDataToSign(_safe, toArray(call));
         return true;
     }
@@ -128,9 +128,9 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      * The following signer should run this function:
         - <s9> => using signatures from <s7>, <s8>
      */
-    function runTransaction(address _safe, address[] memory _otherSafes, bytes memory _signatures) public returns (bool) {
+    function runTransaction(address _safe, bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();
-        IMulticall3.Call3 memory call = _generateExecuteCall(_safe, _otherSafes);
+        IMulticall3.Call3 memory call = _generateExecuteCall(_safe);
         bool success = _executeTransaction(_safe, toArray(call), _signatures);
         if (success) _postCheck();
         return success;
@@ -160,17 +160,31 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         });
     }
 
-    function _generateExecuteCall(address _safe, address[] memory _otherSafes) internal returns (IMulticall3.Call3 memory) {
+    function _generateExecuteCall(address _safe) internal returns (IMulticall3.Call3 memory) {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         address ownerSafe = _ownerSafe();
         IGnosisSafe nestedSafe = IGnosisSafe(payable(ownerSafe));
         bytes memory nestedData = _buildCalldata();
+        bytes32 nestedHash = _getTransactionHash(ownerSafe, nestedData);
 
-        address[] memory allSafes = new address[](_otherSafes.length + 1);
-        for (uint256 i; i < _otherSafes.length; i++) {
-            allSafes[i] = _otherSafes[i];
+        // get a list of owners that have approved this transaction
+        uint256 threshold = nestedSafe.getThreshold();
+        address[] memory owners = safe.getOwners();
+        address[] memory approvals = new address[](threshold);
+        uint256 approvalIndex;
+        for (uint256 i; i < owners.length; i++) {
+            address owner = owners[i];
+            uint256 approved = safe.approvedHashes(owner, nestedHash);
+            if (approved == 1) {
+                approvals[approvalIndex] = owner;
+                approvalIndex++;
+                if (approvalIndex == threshold - 1) {
+                    break;
+                }
+            }
         }
-        allSafes[_otherSafes.length] = _safe;
+        require(approvalIndex == threshold - 1, "not enough approvals");
+        approvals[approvalIndex] = _safe; // last approver is the current user
 
         return IMulticall3.Call3({
             target: ownerSafe,
@@ -186,7 +200,7 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
                     0,                           // gasPrice
                     address(0),                  // gasToken
                     payable(address(0)),         // refundReceiver
-                    addressSignatures(allSafes)  // signatures
+                    addressSignatures(approvals) // signatures
                 )
             )
         });
