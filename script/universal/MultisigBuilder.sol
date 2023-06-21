@@ -47,6 +47,9 @@ abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBa
      * Generate a transaction execution data to sign. This method should be called by a threshold-1
      * of members of the multisig that will execute the transaction. Signers will pass their
      * signature to the final signer of this multisig.
+     *
+     * Alternatively, this method can be called by a threshold of signers, and those signatures
+     * used by a separate tx executor address in step 2, which doesn't have to be a signer.
      */
     function sign() public returns (bool) {
         _printDataToSign(_ownerSafe(), _buildCalls());
@@ -56,8 +59,11 @@ abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBa
     /**
      * Step 2
      * ======
-     * Execute the transaction. This method should be called by the final member of the
-     * multisig that will execute the transaction. Signatures from step 1 are required.
+     * Execute the transaction. This method should be called by the final member of the multisig
+     * that will execute the transaction. Signatures from step 1 are required.
+     *
+     * Alternatively, this method can be called after a threshold of signatures is collected from
+     * step 1. In this scenario, the caller doesn't need to be a signer of the multisig.
      */
     function run(bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();

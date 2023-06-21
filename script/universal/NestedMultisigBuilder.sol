@@ -48,7 +48,10 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      * Generate a transaction approval data to sign. This method should be called by a threshold-1
      * of members of each of the multisigs involved in the nested multisig, except the final
      * multisig that will execute. Signers will pass their signature to the final signer of their
-     * repsective multisig.
+     * respective multisig.
+     *
+     * Alternatively, this method can be called by a threshold of signers, and those signatures
+     * used by a separate tx executor address in step 2, which doesn't have to be a signer.
      *
      * Example:
      * --------
@@ -74,6 +77,9 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      * the multisigs involved in the nested multisig, except the final multisig that will execute.
      * Signatures from step 1 are required.
      *
+     * Alternatively, this method can be called after a threshold of signatures is collected from
+     * step 1. In this scenario, the caller doesn't need to be a signer of the multisig.
+     *
      * Example:
      * --------
      * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
@@ -97,6 +103,9 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      * of members of the final multisig that will execute the transaction. Signers will pass their
      * signature to the final signer of this multisig.
      *
+     * Alternatively this method can be called by a threshold of signers, and those signatures
+     * used by a separate tx executor address in step 4, which doesn't have to be a signer.
+     *
      * Example:
      * --------
      * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
@@ -118,6 +127,9 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
      * ======
      * Execute the transaction. This method should be called by the final member of the final
      * multisig that will execute the transaction. Signatures from step 3 are required.
+     *
+     * Alternatively, this method can be called after a threshold of signatures is collected from
+     * step 3. In this scenario, the caller doesn't need to be a signer of the multisig.
      *
      * Example:
      * --------
