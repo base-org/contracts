@@ -51,10 +51,17 @@ abstract contract MultisigBase is CommonBase {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
 
-        uint8 v = 1;
-        bytes32 s = bytes32(0);
-        bytes32 r = bytes32(uint256(uint160(msg.sender)));
-        _signatures = bytes.concat(_signatures, abi.encodePacked(r, s, v));
+        uint256 signatureCount = uint256(_signatures.length / 0x41);
+        uint256 threshold = safe.getThreshold();
+        require(signatureCount >= threshold - 1, "not enough signatures");
+
+        if (signatureCount < threshold) {
+            // need one more signature; assume the tx executor is a signer
+            uint8 v = 1;
+            bytes32 s = bytes32(0);
+            bytes32 r = bytes32(uint256(uint160(msg.sender)));
+            _signatures = bytes.concat(_signatures, abi.encodePacked(r, s, v));
+        }
 
         return safe.execTransaction({
             to: address(multicall),
