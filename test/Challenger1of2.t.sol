@@ -4,8 +4,9 @@ pragma solidity ^0.8.15;
 import {console} from "forge-std/console.sol";
 import { Test, StdUtils } from "forge-std/Test.sol";
 
-import "@eth-optimism-bedrock/contracts/L1/L2OutputOracle.sol";
-import "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
+import { L2OutputOracle } from "@eth-optimism-bedrock/contracts/L1/L2OutputOracle.sol";
+import { ProxyAdmin } from "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
+import { Proxy } from "@eth-optimism-bedrock/contracts/universal/Proxy.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { Challenger1of2 } from "src/Challenger1of2.sol";
 
@@ -33,6 +34,12 @@ contract Challenger1of2Test is Test {
         bytes _data,
         bytes _result
     );
+
+    event OutputsDeleted(
+        address indexed _caller,
+        uint256 indexed prevNextOutputIndex,
+        uint256 indexed newNextOutputIndex
+    );
     
     function setUp() public {
         vm.prank(deployer);
@@ -44,15 +51,15 @@ contract Challenger1of2Test is Test {
         );
 
         // Initialize L2OutputOracle implementation.
-        l2OutputOracle = new L2OutputOracle(
-            NONZERO_INTEGER,
-            NONZERO_INTEGER,
-            NONZERO_INTEGER,
-            ZERO,
-            proposer,
-            address(challenger),
-            NONZERO_INTEGER
-        );
+        l2OutputOracle = new L2OutputOracle({
+            _submissionInterval: NONZERO_INTEGER,
+            _l2BlockTime: NONZERO_INTEGER,
+            _startingBlockNumber: NONZERO_INTEGER,
+            _startingTimestamp: ZERO,
+            _proposer: proposer,
+            _challenger: address(challenger),
+            _finalizationPeriodSeconds: NONZERO_INTEGER
+        });
         
         vm.prank(deployer);
         // Upgrade and initialize L2OutputOracle.
@@ -115,16 +122,27 @@ contract Challenger1of2Test is Test {
     }
 
     function test_execute_opSigner_success() external {
-        proposeOutput();
-        proposeOutput();
+        _proposeOutput();
+        _proposeOutput();
 
         L2OutputOracle oracle = L2OutputOracle(address(l2OutputOracleProxy));
         // Check that the outputs were proposed.
         assertFalse(oracle.latestOutputIndex() == ZERO);
 
-        vm.prank(optimismWallet);
+        // We expect the OutputsDeleted event to be emitted
         vm.expectEmit(true, true, true, true, address(challenger));
+
+        // Emit the event we expect to see
         emit ChallengerCallExecuted(optimismWallet, DELETE_OUTPUTS_SIGNATURE, ZERO_OUTPUT);
+
+        // We expect deleteOutputs to be called
+        vm.expectCall(
+            address(l2OutputOracleProxy),
+            abi.encodeWithSignature("deleteL2Outputs(uint256)", 1)
+        );
+
+        // Make the call        
+        vm.prank(optimismWallet);
         challenger.execute(DELETE_OUTPUTS_SIGNATURE);
 
         // Check that the outputs were deleted.
@@ -132,32 +150,44 @@ contract Challenger1of2Test is Test {
     }
 
     function test_execute_cbSigner_success() external {
-        proposeOutput();
-        proposeOutput();
+        _proposeOutput();
+        _proposeOutput();
 
         L2OutputOracle oracle = L2OutputOracle(address(l2OutputOracleProxy));
         // Check that the outputs were proposed.
         assertFalse(oracle.latestOutputIndex() == ZERO);
 
-        vm.prank(coinbaseWallet);
+        // We expect the OutputsDeleted event to be emitted
         vm.expectEmit(true, true, true, true, address(challenger));
+
+        // Emit the event we expect to see
         emit ChallengerCallExecuted(coinbaseWallet, DELETE_OUTPUTS_SIGNATURE, ZERO_OUTPUT);
+
+        // We expect deleteOutputs to be called
+        vm.expectCall(
+            address(l2OutputOracleProxy),
+            abi.encodeWithSignature("deleteL2Outputs(uint256)", 1)
+        );
+
+        // Make the call        
+        vm.prank(coinbaseWallet);
         challenger.execute(DELETE_OUTPUTS_SIGNATURE);
 
         // Check that the outputs were deleted.
         assertEq(oracle.latestOutputIndex(), ZERO);
     }
 
-    function proposeOutput() internal {
-        vm.startBroadcast(proposer);
+    function _proposeOutput() internal {
         L2OutputOracle oracle = L2OutputOracle(address(l2OutputOracleProxy));
         vm.warp(oracle.computeL2Timestamp(oracle.nextBlockNumber()) + 1);
+
+        vm.startPrank(proposer);
         oracle.proposeL2Output(
             bytes32("something"),
             oracle.nextBlockNumber(),
             blockhash(10),
             10
         );
-        vm.stopBroadcast();
+        vm.stopPrank();
     }
 }
