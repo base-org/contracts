@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.15;
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -165,12 +165,12 @@ contract DeployBedrock is Script {
         vm.broadcast(deployer);
         optimismPortalImpl = new OptimismPortal(
             L2OutputOracle(address(l2OutputOracleProxy)),
-            deployConfig.l2OutputOracleChallenger,
+            deployConfig.portalGuardian,
             true,
             SystemConfig(address(systemConfigProxy))
         );
         require(address(optimismPortalImpl.L2_ORACLE()) == address(l2OutputOracleProxy), "Deploy: optimismPortal l2OutputOracle proxy is incorrect");
-        require(optimismPortalImpl.GUARDIAN() == deployConfig.l2OutputOracleChallenger, "Deploy: optimismPortal GUARDIAN is incorrect");
+        require(optimismPortalImpl.GUARDIAN() == deployConfig.portalGuardian, "Deploy: optimismPortal GUARDIAN is incorrect");
         require(optimismPortalImpl.paused() == true, "Deploy: optimismPortal pause state is incorrect");
         require(address(optimismPortalImpl.SYSTEM_CONFIG()) == address(systemConfigProxy), "Deploy: optimismPortal SystemConfig is incorrect");
 
@@ -202,12 +202,14 @@ contract DeployBedrock is Script {
             deployConfig.p2pSequencerAddress,
             defaultResourceCfg
         );
+        require(deployConfig.l2GenesisBlockGasLimit >= defaultResourceCfg.systemTxMaxGas + defaultResourceCfg.maxResourceLimit, "Deploy: l2GenesisBlockGasLimit too low");
         require(address(systemConfigImpl.owner()) == deployConfig.finalSystemOwner, "Deploy: systemConfig finalSystemOwner is incorrect");
         require(systemConfigImpl.overhead() == deployConfig.gasPriceOracleOverhead, "Deploy: systemConfig gasPriceOracleOverhead is incorrect");
         require(systemConfigImpl.scalar() == deployConfig.gasPriceOracleScalar, "Deploy: systemConfig gasPriceOracleScalar is incorrect");
         require(systemConfigImpl.batcherHash() == batcherHash, "Deploy: systemConfig batcherHash is incorrect");
         require(systemConfigImpl.gasLimit() == deployConfig.l2GenesisBlockGasLimit, "Deploy: systemConfig l2GenesisBlockGasLimit is incorrect");
         require(systemConfigImpl.unsafeBlockSigner() == deployConfig.p2pSequencerAddress, "Deploy: systemConfig p2pSequencerAddress is incorrect");
+        require(keccak256(abi.encode(systemConfigImpl.resourceConfig())) == keccak256(abi.encode(defaultResourceCfg)), "Deploy: systemConfig resourceConfig is incorrect");
 
         // 018-SystemDictatorImpl.ts
         vm.broadcast(deployer);
@@ -233,9 +235,6 @@ contract DeployBedrock is Script {
         finalCfg.L1ERC721BridgeProxy = address(l1ERC721BridgeProxy);
         finalCfg.SystemConfigProxy = address(systemConfigProxy);
         finalCfg.SystemDictatorProxy = address(systemDictatorProxy);
-
-        finalCfg.BlockNumber = block.number;
-        finalCfg.BlockTimestamp = block.timestamp;
 
         utils.writeAddressesFile(finalCfg);
     }
@@ -293,12 +292,18 @@ contract DeployBedrock is Script {
     function systemDictatorSteps() internal {
         vm.broadcast(deployer);
         OwnableUpgradeable(address(proxyAdmin)).transferOwnership(address(systemDictatorProxy));
+        require(proxyAdmin.owner() == address(systemDictatorProxy), "Deploy: proxyAdmin owner is incorrect");
         vm.broadcast(deployer);
         OwnableUpgradeable(address(addressManager)).transferOwnership(address(systemDictatorProxy));
+        require(addressManager.owner() == address(systemDictatorProxy), "Deploy: addressManager owner is incorrect");
         vm.broadcast(deployer);
         L1ChugSplashProxy(payable(address(l1StandardBridgeProxy))).setOwner(address(systemDictatorProxy));
+        vm.prank(address(0));
+        require(l1StandardBridgeProxy.getOwner() == address(systemDictatorProxy), "Deploy: l1StandardBridgeProxy owner is incorrect");
         vm.broadcast(deployer);
         Proxy(payable(address(l1ERC721BridgeProxy))).changeAdmin(address(systemDictatorProxy));
+        vm.prank(address(0));
+        require(l1ERC721BridgeProxy.admin() == address(systemDictatorProxy), "Deploy: l1ERC721BridgeProxy admin is incorrect");
 
         SystemDictator systemDictator = SystemDictator(address(systemDictatorProxy));
         vm.broadcast(deployer);
@@ -316,11 +321,35 @@ contract DeployBedrock is Script {
         require(testingSystemConfigProxy.batcherHash() == batcherHash, "Deploy: systemConfig proxy batcherHash is incorrect");
         require(testingSystemConfigProxy.gasLimit() == deployConfig.l2GenesisBlockGasLimit, "Deploy: systemConfig proxy l2GenesisBlockGasLimit is incorrect");
         require(testingSystemConfigProxy.unsafeBlockSigner() == deployConfig.p2pSequencerAddress, "Deploy: systemConfig proxy p2pSequencerAddress is incorrect");
+        
+        ResourceMetering.ResourceConfig memory defaultResourceCfg = Constants.DEFAULT_RESOURCE_CONFIG();
+        ResourceMetering.ResourceConfig memory testResourceConfig = testingSystemConfigProxy.resourceConfig();
+        require(keccak256(abi.encode(testResourceConfig)) == keccak256(abi.encode(defaultResourceCfg)), "Deploy: systemConfig resourceConfig is incorrect");
+        require(testResourceConfig.maxResourceLimit == 20_000_000, "Deploy maxResourceLimit is incorrect");
+        require(testResourceConfig.elasticityMultiplier == 10, "Deploy elasticityMultiplier is incorrect");
+        require(testResourceConfig.baseFeeMaxChangeDenominator == 8, "Deploy baseFeeMaxChangeDenominator is incorrect");
+        require(testResourceConfig.minimumBaseFee == 1 gwei, "Deploy minimumBaseFee is incorrect");
+        require(testResourceConfig.systemTxMaxGas == 1_000_000, "Deploy systemTxMaxGas is incorrect");
+        require(testResourceConfig.maximumBaseFee == type(uint128).max, "Deploy maximumBaseFee is incorrect");
+
+        require(addressManager.getAddress("OVM_L1CrossDomainMessenger") == address(0), "Deploy: l1CrossDomainMessenger must be address(0) in addressManager");
 
         vm.broadcast(deployer);
         systemDictator.step2();
 
         require(addressManager.getAddress("OVM_L1CrossDomainMessenger") == address(0), "Deploy: addressManager l1CrossDomainMessengerProxy address is incorrect");
+
+        SystemDictator.L2OutputOracleDynamicConfig memory l2OutputOracleDynamicConfig;
+        l2OutputOracleDynamicConfig.l2OutputOracleStartingBlockNumber = deployConfig.l2OutputOracleStartingBlockNumber;
+        l2OutputOracleDynamicConfig.l2OutputOracleStartingTimestamp = deployConfig.l2OutputOracleStartingTimestamp;
+
+        bool optimismPortalDynamicConfig = true;
+
+        vm.broadcast(deployer);
+        systemDictator.updateDynamicConfig(
+            l2OutputOracleDynamicConfig,
+            optimismPortalDynamicConfig
+        );
 
         vm.broadcast(deployer);
         systemDictator.step3();
@@ -330,34 +359,28 @@ contract DeployBedrock is Script {
         require(addressManager.owner() == address(proxyAdmin), "Deploy: addressManager owner is incorrect");
         vm.prank(address(0));
         require(l1StandardBridgeProxy.getOwner() == address(proxyAdmin), "Deploy: l1StandardBridgeProxy owner is incorrect");
-
-        SystemDictator.L2OutputOracleDynamicConfig memory l2OutputOracleDynamicConfig;
-        l2OutputOracleDynamicConfig.l2OutputOracleStartingBlockNumber = deployConfig.l2OutputOracleStartingBlockNumber;
-        l2OutputOracleDynamicConfig.l2OutputOracleStartingTimestamp = block.timestamp;
-
-        vm.broadcast(deployer);
-        systemDictator.updateDynamicConfig(
-            l2OutputOracleDynamicConfig,
-            false
-        );
-
+        vm.prank(address(0));
+        require(l1ERC721BridgeProxy.admin() == address(proxyAdmin), "Deploy: l1ERC721BridgeProxy owner is incorrect");
         
         vm.broadcast(deployer);
         systemDictator.step5();
 
         require(L2OutputOracle(address(l2OutputOracleProxy)).latestBlockNumber() == deployConfig.l2OutputOracleStartingBlockNumber, "l2OutputOracleProxy l2StartingBlockNumber is incorrect");
         OptimismPortal testingOptimismPortal = OptimismPortal(payable(address(optimismPortalProxy)));
-        require(testingOptimismPortal.l2Sender() == 0x000000000000000000000000000000000000dEaD, "optimismPortalProxy l2Sender is incorrect");
+        require(testingOptimismPortal.l2Sender() == 0x000000000000000000000000000000000000dEaD, "Deploy: optimismPortalProxy l2Sender is incorrect");
         (uint128 prevBaseFee, uint64 prevBoughtGas, uint64 prevBlockNum) = testingOptimismPortal.params();
-        require(prevBoughtGas == 0, "optimismPortalProxy prevBoughtGas is incorrect");
-        // require(prevBlockNum != 0, "optimismPortalProxy prevBlockNum is incorrect");
-        require(address(l1StandardBridgeProxy).balance == 0, "l1StandardBridgeProxy balance is incorrect");
+        require(prevBaseFee == 1 gwei, "Deploy: optimismPortalProxy prevBaseFee is incorrect");
+        require(prevBoughtGas == 0, "Deploy: optimismPortalProxy prevBoughtGas is incorrect");
+        require(prevBlockNum != 0, "Deploy: optimismPortalProxy prevBlockNum is incorrect");
+        require(address(l1StandardBridgeProxy).balance == 0, "Deploy: l1StandardBridgeProxy balance is incorrect");
         require(address(L1StandardBridge(payable(address(l1StandardBridgeProxy))).messenger()) == address(l1CrossDomainMessengerProxy), "l1StandardBridgeProxy messenger is incorrect");
         require(OptimismMintableERC20Factory(address(optimismMintableERC20FactoryProxy)).BRIDGE() == address(l1StandardBridgeProxy), "optimismMintableERC20FactoryProxy l1StandardBridgeProxy is incorrect");
         require(address(L1ERC721Bridge(address(l1ERC721BridgeProxy)).messenger())== address(l1CrossDomainMessengerProxy), "l1ERC721BridgeProxy messenger is incorrect");
 
         vm.broadcast(deployer);
         systemDictator.finalize();
+        require(proxyAdmin.owner() == deployConfig.finalSystemOwner, "Deploy: proxyAdmin finalSystemOwner is incorrect");
+        require(systemDictator.finalized() == true, "Deploy: systemDictator is not finalized");
         console.log("Bedrock L1 Contract Deployment Complete");
     }
 }

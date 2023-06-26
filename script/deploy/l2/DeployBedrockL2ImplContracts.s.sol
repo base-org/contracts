@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.15;
 
 import "forge-std/Script.sol";
 import "forge-std/StdJson.sol";
@@ -110,9 +110,9 @@ contract DeployBedrockL2ImplContracts is Script {
 
         // Deploy OptimismMintableERC721Factory
         vm.broadcast(deployer);
-        optimismMintableERC721FactoryImpl = new OptimismMintableERC721Factory(Predeploys.L2_ERC721_BRIDGE, deployConfig.l2ChainId);
+        optimismMintableERC721FactoryImpl = new OptimismMintableERC721Factory(Predeploys.L2_ERC721_BRIDGE, deployConfig.l1ChainId);
         require(address(optimismMintableERC721FactoryImpl.BRIDGE()) == address(Predeploys.L2_ERC721_BRIDGE), "Deploy: optimismMintableERC721Factory l2ERC721BridgeProxy is incorrect");
-        require(optimismMintableERC721FactoryImpl.REMOTE_CHAIN_ID() == deployConfig.l2ChainId, "Deploy: optimismMintableERC721Factory chain ID is incorrect");
+        require(optimismMintableERC721FactoryImpl.REMOTE_CHAIN_ID() == deployConfig.l1ChainId, "Deploy: optimismMintableERC721Factory chain ID is incorrect");
 
         // Publish L2 implementation contract addresses
         addressL2Cfg.BaseFeeVault = address(baseFeeVaultImpl);
