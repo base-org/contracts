@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&privateKey, "private-key", "", "Private key to use for signing")
 	flag.BoolVar(&ledger, "ledger", false, "Use ledger device for signing")
 	flag.StringVar(&mnemonic, "mnemonic", "", "Mnemonic to use for signing")
-	flag.StringVar(&hdPath, "hd-path", "m/44'/60'/0'/0/0", "Hierarchical deterministic derivation path for mnemonic or ledger")
+	flag.StringVar(&hdPath, "hd-paths", "m/44'/60'/0'/0/0", "Hierarchical deterministic derivation path for mnemonic or ledger")
 	flag.Parse()
 
 	options := 0
