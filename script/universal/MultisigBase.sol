@@ -5,9 +5,10 @@ import { console } from "forge-std/console.sol";
 import { CommonBase } from "forge-std/Base.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
 import { LibSort } from "@eth-optimism-bedrock/scripts/libraries/LibSort.sol";
 
-abstract contract MultisigBase is CommonBase {
+abstract contract MultisigBase is CommonBase, EnhancedScript {
     IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
 
     function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
@@ -36,7 +37,7 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal {
+    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal view {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
 
@@ -83,7 +84,7 @@ abstract contract MultisigBase is CommonBase {
         return calls;
     }
 
-    function addressSignatures(address[] memory _addresses) internal view returns (bytes memory) {
+    function addressSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
         LibSort.sort(_addresses);
         bytes memory signatures;
         uint8 v = 1;
@@ -95,7 +96,7 @@ abstract contract MultisigBase is CommonBase {
         return signatures;
     }
 
-    function sortSignatures(bytes memory _signatures, bytes32 dataHash) internal returns (bytes memory) {
+    function sortSignatures(bytes memory _signatures, bytes32 dataHash) internal pure returns (bytes memory) {
         bytes memory sorted;
         uint256 count = uint256(_signatures.length / 0x41);
         uint256[] memory addressesAndIndexes = new uint256[](count);
