@@ -44,6 +44,7 @@ func main() {
 	}
 
 	bytes, err := io.ReadAll(os.Stdin)
+	fmt.Println()
 	if err != nil {
 		log.Fatalf("Error reading from stdin: %v", err)
 	}

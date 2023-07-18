@@ -17,7 +17,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c // indirect
-	github.com/karalabe/usb v0.0.2 // indirect
+	github.com/karalabe/usb v0.0.3-0.20230711191512-61db3e06439c // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
