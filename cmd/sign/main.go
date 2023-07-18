@@ -58,12 +58,23 @@ func main() {
 		log.Fatalf("Error creating signer: %v", err)
 	}
 
+	domainHash := hash[2:34]
+	messageHash := hash[34:66]
+	fmt.Printf("Domain hash: 0x%s\n", hex.EncodeToString(domainHash))
+	fmt.Printf("Message hash: 0x%s\n", hex.EncodeToString(messageHash))
+
+	if ledger {
+		fmt.Printf("Data sent to ledger, awaiting signature...")
+	}
 	signature, err := s.sign(hash)
+	if ledger {
+		fmt.Println("done")
+	}
 	if err != nil {
 		log.Fatalf("Error signing data: %v", err)
 	}
 
-	fmt.Printf("Data: %s\n", hex.EncodeToString(hash))
+	fmt.Printf("\nData: 0x%s\n", hex.EncodeToString(hash))
 	fmt.Printf("Signer: %s\n", s.address().String())
 	fmt.Printf("Signature: %s\n", hex.EncodeToString(signature))
 }
@@ -103,11 +114,11 @@ func createSigner(privateKey, mnemonic, hdPath string) (signer, error) {
 	}
 	wallet := wallets[0]
 	if err := wallet.Open(""); err != nil {
-		return nil, fmt.Errorf("error opening ledger (have you unlocked?): %w", err)
+		return nil, fmt.Errorf("error opening ledger: %w", err)
 	}
 	account, err := wallet.Derive(path, true)
 	if err != nil {
-		return nil, fmt.Errorf("error deriving ledger account: %w", err)
+		return nil, fmt.Errorf("error deriving ledger account (have you unlocked?): %w", err)
 	}
 	return &walletSigner{
 		wallet:  wallet,
