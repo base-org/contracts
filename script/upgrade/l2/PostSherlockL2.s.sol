@@ -138,7 +138,7 @@ contract PostSherlockL2 is SafeBuilder {
      *         A total of 9 calls are made to the proxy admin to upgrade the implementations
      *         of the predeploys.
      */
-    function buildCalldata(address _proxyAdmin) internal override view returns (bytes memory) {
+    function buildCalldata(address) internal override view returns (bytes memory) {
         IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](11);
 
         ContractSet memory impl = getImplementations();
