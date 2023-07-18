@@ -6,14 +6,11 @@ import "./MultisigBase.sol";
 import { console } from "forge-std/console.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 
-import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
-import { GlobalConstants } from "@eth-optimism-bedrock/scripts/universal/GlobalConstants.sol";
-
 /**
  * @title MultisigBuilder
  * @notice Modeled from Optimism's SafeBuilder, but using signatures instead of approvals.
  */
-abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBase {
+abstract contract MultisigBuilder is MultisigBase {
     /**
      * -----------------------------------------------------------
      * Virtual Functions
@@ -51,7 +48,7 @@ abstract contract MultisigBuilder is EnhancedScript, GlobalConstants, MultisigBa
      * Alternatively, this method can be called by a threshold of signers, and those signatures
      * used by a separate tx executor address in step 2, which doesn't have to be a signer.
      */
-    function sign() public returns (bool) {
+    function sign() public view returns (bool) {
         _printDataToSign(_ownerSafe(), _buildCalls());
         return true;
     }

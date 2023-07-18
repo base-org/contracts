@@ -5,9 +5,10 @@ import { console } from "forge-std/console.sol";
 import { CommonBase } from "forge-std/Base.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
 import { LibSort } from "@eth-optimism-bedrock/scripts/libraries/LibSort.sol";
 
-abstract contract MultisigBase is CommonBase {
+abstract contract MultisigBase is CommonBase, EnhancedScript {
     IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
 
     function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
@@ -36,7 +37,7 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal {
+    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal view {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
 
@@ -63,6 +64,29 @@ abstract contract MultisigBase is CommonBase {
             _signatures = bytes.concat(_signatures, abi.encodePacked(r, s, v));
         }
 
+        // safe requires signatures to be sorted ascending by public key
+        _signatures = sortSignatures(_signatures, hash);
+
+        logSimulationLink({
+            _to: _safe,
+            _from: msg.sender,
+            _data: abi.encodeCall(
+                safe.execTransaction,
+                (
+                    address(multicall),
+                    0,
+                    data,
+                    Enum.Operation.DelegateCall,
+                    0,
+                    0,
+                    0,
+                    address(0),
+                    payable(address(0)),
+                    _signatures
+                )
+            )
+        });
+
         return safe.execTransaction({
             to: address(multicall),
             value: 0,
@@ -73,7 +97,7 @@ abstract contract MultisigBase is CommonBase {
             gasPrice: 0,
             gasToken: address(0),
             refundReceiver: payable(address(0)),
-            signatures: sortSignatures(_signatures, hash)
+            signatures: _signatures
         });
     }
 
@@ -83,7 +107,7 @@ abstract contract MultisigBase is CommonBase {
         return calls;
     }
 
-    function addressSignatures(address[] memory _addresses) internal view returns (bytes memory) {
+    function addressSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
         LibSort.sort(_addresses);
         bytes memory signatures;
         uint8 v = 1;
@@ -95,7 +119,7 @@ abstract contract MultisigBase is CommonBase {
         return signatures;
     }
 
-    function sortSignatures(bytes memory _signatures, bytes32 dataHash) internal returns (bytes memory) {
+    function sortSignatures(bytes memory _signatures, bytes32 dataHash) internal pure returns (bytes memory) {
         bytes memory sorted;
         uint256 count = uint256(_signatures.length / 0x41);
         uint256[] memory addressesAndIndexes = new uint256[](count);

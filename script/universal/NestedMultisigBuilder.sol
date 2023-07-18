@@ -7,14 +7,12 @@ import { console } from "forge-std/console.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 
 import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
-import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
-import { GlobalConstants } from "@eth-optimism-bedrock/scripts/universal/GlobalConstants.sol";
 
 /**
  * @title NestedMultisigBuilder
  * @notice Modeled from Optimism's SafeBuilder, but built for nested safes (Safes where the signers are other Safes).
  */
-abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, MultisigBase {
+abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * -----------------------------------------------------------
      * Virtual Functions
@@ -64,7 +62,7 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         - <s2> => send signature to <s3>
         - <s4> => send signature to <s5>
      */
-    function signApproval(address _signerSafe) public returns (bool) {
+    function signApproval(address _signerSafe) public view returns (bool) {
         IMulticall3.Call3 memory call = _generateApproveCall();
         _printDataToSign(_signerSafe, toArray(call));
         return true;
@@ -116,7 +114,7 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         - <s7> => send signature to <s9>
         - <s8> => send signature to <s9>
      */
-    function signTransaction(address _signerSafe) public returns (bool) {
+    function signTransaction(address _signerSafe) public view returns (bool) {
         IMulticall3.Call3 memory call = _generateExecuteCall(_signerSafe);
         _printDataToSign(_signerSafe, toArray(call));
         return true;
@@ -153,7 +151,7 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         return abi.encodeCall(IMulticall3.aggregate3, (calls));
     }
 
-    function _generateApproveCall() internal returns (IMulticall3.Call3 memory) {
+    function _generateApproveCall() internal view returns (IMulticall3.Call3 memory) {
         address ownerSafeAddress = _ownerSafe();
         IGnosisSafe ownerSafe = IGnosisSafe(payable(ownerSafeAddress));
         bytes memory nestedData = _buildCalldata();
@@ -171,7 +169,7 @@ abstract contract NestedMultisigBuilder is EnhancedScript, GlobalConstants, Mult
         });
     }
 
-    function _generateExecuteCall(address _signerSafe) internal returns (IMulticall3.Call3 memory) {
+    function _generateExecuteCall(address _signerSafe) internal view returns (IMulticall3.Call3 memory) {
         address ownerSafe = _ownerSafe();
         IGnosisSafe nestedSafe = IGnosisSafe(payable(ownerSafe));
         bytes memory nestedData = _buildCalldata();
