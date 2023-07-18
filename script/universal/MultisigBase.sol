@@ -64,6 +64,29 @@ abstract contract MultisigBase is CommonBase, EnhancedScript {
             _signatures = bytes.concat(_signatures, abi.encodePacked(r, s, v));
         }
 
+        // safe requires signatures to be sorted ascending by public key
+        _signatures = sortSignatures(_signatures, hash);
+
+        logSimulationLink({
+            _to: _safe,
+            _from: msg.sender,
+            _data: abi.encodeCall(
+                safe.execTransaction,
+                (
+                    address(multicall),
+                    0,
+                    data,
+                    Enum.Operation.DelegateCall,
+                    0,
+                    0,
+                    0,
+                    address(0),
+                    payable(address(0)),
+                    _signatures
+                )
+            )
+        });
+
         return safe.execTransaction({
             to: address(multicall),
             value: 0,
@@ -74,7 +97,7 @@ abstract contract MultisigBase is CommonBase, EnhancedScript {
             gasPrice: 0,
             gasToken: address(0),
             refundReceiver: payable(address(0)),
-            signatures: sortSignatures(_signatures, hash)
+            signatures: _signatures
         });
     }
 
