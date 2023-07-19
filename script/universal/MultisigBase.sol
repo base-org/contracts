@@ -11,6 +11,11 @@ import { LibSort } from "@eth-optimism-bedrock/scripts/libraries/LibSort.sol";
 abstract contract MultisigBase is CommonBase, EnhancedScript {
     IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
 
+    function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
+        return _getTransactionHash(_safe, data);
+    }
+
     function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
         return keccak256(_encodeTransactionData(_safe, _data));
     }
@@ -54,15 +59,7 @@ abstract contract MultisigBase is CommonBase, EnhancedScript {
 
         uint256 signatureCount = uint256(_signatures.length / 0x41);
         uint256 threshold = safe.getThreshold();
-        require(signatureCount >= threshold - 1, "not enough signatures");
-
-        if (signatureCount < threshold) {
-            // need one more signature; assume the tx executor is a signer
-            uint8 v = 1;
-            bytes32 s = bytes32(0);
-            bytes32 r = bytes32(uint256(uint160(msg.sender)));
-            _signatures = bytes.concat(_signatures, abi.encodePacked(r, s, v));
-        }
+        require(signatureCount >= threshold, "not enough signatures");
 
         // safe requires signatures to be sorted ascending by public key
         _signatures = sortSignatures(_signatures, hash);

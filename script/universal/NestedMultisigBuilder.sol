@@ -43,26 +43,12 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * Step 1
      * ======
-     * Generate a transaction approval data to sign. This method should be called by a threshold-1
-     * of members of each of the multisigs involved in the nested multisig, except the final
-     * multisig that will execute. Signers will pass their signature to the final signer of their
-     * respective multisig.
-     *
-     * Alternatively, this method can be called by a threshold of signers, and those signatures
-     * used by a separate tx executor address in step 2, which doesn't have to be a signer.
-     *
-     * Example:
-     * --------
-     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
-     *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
-     *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
-     *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     * The following signers should run this function:
-        - <s1> => send signature to <s3>
-        - <s2> => send signature to <s3>
-        - <s4> => send signature to <s5>
+     * Generate a transaction approval data to sign. This method should be called by a threshold
+     * of members of each of the multisigs involved in the nested multisig. Signers will pass
+     * their signature to a facilitator, who will execute the approval transaction for each
+     * multisig (see step 2).
      */
-    function signApproval(address _signerSafe) public view returns (bool) {
+    function sign(address _signerSafe) public view returns (bool) {
         IMulticall3.Call3 memory call = _generateApproveCall();
         _printDataToSign(_signerSafe, toArray(call));
         return true;
@@ -71,25 +57,13 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * Step 2
      * ======
-     * Execute a transaction approval. This method should be called by the final member of each of
-     * the multisigs involved in the nested multisig, except the final multisig that will execute.
-     * Signatures from step 1 are required.
-     *
-     * Alternatively, this method can be called after a threshold of signatures is collected from
-     * step 1. In this scenario, the caller doesn't need to be a signer of the multisig.
-     *
-     * Example:
-     * --------
-     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
-     *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
-     *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
-     *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     * The following signers should run this function:
-        - <s3> => using signatures from <s1>, <s2>
-        - <s5> => using signature from <s4>
+     * Execute an approval transaction. This method should be called by a facilitator
+     * (non-signer), once for each of the multisigs involved in the nested multisig,
+     * after collecting a threshold of signatures for each multisig (see step 1).
      */
-    function runApproval(address _signerSafe, bytes memory _signatures) public returns (bool) {
+    function approve(address _signerSafe, bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();
+
         IMulticall3.Call3 memory call = _generateApproveCall();
         return _executeTransaction(_signerSafe, toArray(call), _signatures);
     }
@@ -97,120 +71,61 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * Step 3
      * ======
-     * Generate a transaction execution data to sign. This method should be called by a threshold-1
-     * of members of the final multisig that will execute the transaction. Signers will pass their
-     * signature to the final signer of this multisig.
-     *
-     * Alternatively this method can be called by a threshold of signers, and those signatures
-     * used by a separate tx executor address in step 4, which doesn't have to be a signer.
-     *
-     * Example:
-     * --------
-     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
-     *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
-     *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
-     *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     * The following signers should run this function:
-        - <s7> => send signature to <s9>
-        - <s8> => send signature to <s9>
+     * Execute the transaction. This method should be called by a facilitator (non-signer), after
+     * all of the approval transactions have been submitted onchain (see step 2).
      */
-    function signTransaction(address _signerSafe) public view returns (bool) {
-        IMulticall3.Call3 memory call = _generateExecuteCall(_signerSafe);
-        _printDataToSign(_signerSafe, toArray(call));
-        return true;
-    }
-
-    /**
-     * Step 4
-     * ======
-     * Execute the transaction. This method should be called by the final member of the final
-     * multisig that will execute the transaction. Signatures from step 3 are required.
-     *
-     * Alternatively, this method can be called after a threshold of signatures is collected from
-     * step 3. In this scenario, the caller doesn't need to be a signer of the multisig.
-     *
-     * Example:
-     * --------
-     * Given a nested 3-of-3 multisig with the following <m1>, <m2>, <m3> multisigs as signers:
-     *  - 3-of-3 multisig <m1>, signers <s1>, <s2>, <s3>
-     *  - 2-of-3 multisig <m2>, signers <s4>, <s5>, <s6>
-     *  - 3-of-3 multisig <m3>, signers <s7>, <s8>, <s9>
-     * The following signer should run this function:
-        - <s9> => using signatures from <s7>, <s8>
-     */
-    function runTransaction(address _signerSafe, bytes memory _signatures) public returns (bool) {
+    function run() public returns (bool) {
         vm.startBroadcast();
-        IMulticall3.Call3 memory call = _generateExecuteCall(_signerSafe);
-        bool success = _executeTransaction(_signerSafe, toArray(call), _signatures);
+
+        address nestedSafeAddress = _ownerSafe();
+        IMulticall3.Call3[] memory nestedCalls = _buildCalls();
+        address[] memory approvers = _getApprovers(nestedSafeAddress, nestedCalls);
+        bytes memory signatures = addressSignatures(approvers);
+
+        bool success = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
         if (success) _postCheck();
         return success;
     }
 
-    function _buildCalldata() internal view returns (bytes memory) {
-        IMulticall3.Call3[] memory calls = _buildCalls();
-        return abi.encodeCall(IMulticall3.aggregate3, (calls));
-    }
-
     function _generateApproveCall() internal view returns (IMulticall3.Call3 memory) {
-        address ownerSafeAddress = _ownerSafe();
-        IGnosisSafe ownerSafe = IGnosisSafe(payable(ownerSafeAddress));
-        bytes memory nestedData = _buildCalldata();
-        bytes32 nestedHash = _getTransactionHash(ownerSafeAddress, nestedData);
+        address nestedSafeAddress = _ownerSafe();
+        IGnosisSafe nestedSafe = IGnosisSafe(payable(nestedSafeAddress));
+        IMulticall3.Call3[] memory nestedCalls = _buildCalls();
+        bytes32 nestedHash = _getTransactionHash(nestedSafeAddress, nestedCalls);
         console.log("Nested hash:");
         console.logBytes32(nestedHash);
 
         return IMulticall3.Call3({
-            target: ownerSafeAddress,
+            target: nestedSafeAddress,
             allowFailure: false,
             callData: abi.encodeCall(
-                ownerSafe.approveHash,
+                nestedSafe.approveHash,
                 (nestedHash)
             )
         });
     }
 
-    function _generateExecuteCall(address _signerSafe) internal view returns (IMulticall3.Call3 memory) {
-        address ownerSafe = _ownerSafe();
-        IGnosisSafe nestedSafe = IGnosisSafe(payable(ownerSafe));
-        bytes memory nestedData = _buildCalldata();
-        bytes32 nestedHash = _getTransactionHash(ownerSafe, nestedData);
+    function _getApprovers(address safeAddr, IMulticall3.Call3[] memory calls) internal view returns (address[] memory) {
+        IGnosisSafe safe = IGnosisSafe(payable(safeAddr));
+        bytes32 hash = _getTransactionHash(safeAddr, calls);
 
         // get a list of owners that have approved this transaction
-        uint256 threshold = nestedSafe.getThreshold();
-        address[] memory owners = nestedSafe.getOwners();
-        address[] memory approvals = new address[](threshold);
-        uint256 approvalIndex;
+        uint256 threshold = safe.getThreshold();
+        address[] memory owners = safe.getOwners();
+        address[] memory approvers = new address[](threshold);
+        uint256 approverIndex;
         for (uint256 i; i < owners.length; i++) {
             address owner = owners[i];
-            uint256 approved = nestedSafe.approvedHashes(owner, nestedHash);
+            uint256 approved = safe.approvedHashes(owner, hash);
             if (approved == 1) {
-                approvals[approvalIndex] = owner;
-                approvalIndex++;
-                if (approvalIndex == threshold - 1) {
+                approvers[approverIndex] = owner;
+                approverIndex++;
+                if (approverIndex == threshold) {
                     break;
                 }
             }
         }
-        require(approvalIndex == threshold - 1, "not enough approvals");
-        approvals[approvalIndex] = _signerSafe; // last approver is the current user
-
-        return IMulticall3.Call3({
-            target: ownerSafe,
-            allowFailure: false,
-            callData: abi.encodeCall(
-                nestedSafe.execTransaction, (
-                    address(multicall),          // to
-                    0,                           // value
-                    nestedData,                  // data
-                    Enum.Operation.DelegateCall, // operation
-                    0,                           // safeTxGas
-                    0,                           // baseGas
-                    0,                           // gasPrice
-                    address(0),                  // gasToken
-                    payable(address(0)),         // refundReceiver
-                    addressSignatures(approvals) // signatures
-                )
-            )
-        });
+        require(approverIndex == threshold, "not enough approvals");
+        return approvers;
     }
 }
