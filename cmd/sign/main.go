@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"flag"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -23,10 +25,16 @@ func main() {
 	var ledger bool
 	var mnemonic string
 	var hdPath string
+	var prefix string
+	var suffix string
+	var workdir string
 	flag.StringVar(&privateKey, "private-key", "", "Private key to use for signing")
 	flag.BoolVar(&ledger, "ledger", false, "Use ledger device for signing")
 	flag.StringVar(&mnemonic, "mnemonic", "", "Mnemonic to use for signing")
 	flag.StringVar(&hdPath, "hd-paths", "m/44'/60'/0'/0/0", "Hierarchical deterministic derivation path for mnemonic or ledger")
+	flag.StringVar(&prefix, "prefix", "vvvvvvvv", "String that prefixes the data to be signed")
+	flag.StringVar(&suffix, "suffix", "^^^^^^^^", "String that suffixes the data to be signed")
+	flag.StringVar(&workdir, "workdir", ".", "Directory in which to run the subprocess")
 	flag.Parse()
 
 	options := 0
@@ -43,14 +51,32 @@ func main() {
 		log.Fatalf("One (and only one) of --private-key, --ledger, --mnemonic must be set")
 	}
 
-	bytes, err := io.ReadAll(os.Stdin)
-	fmt.Println()
-	if err != nil {
-		log.Fatalf("Error reading from stdin: %v", err)
+	var input []byte
+	var err error
+	if flag.NArg() == 0 {
+		input, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("Error reading from stdin: %v", err)
+		}
+	} else {
+		input, err = run(workdir, flag.Arg(0), flag.Args()[1:]...)
+		if err != nil {
+			log.Fatalf("Error running process: %v", err)
+		}
+		fmt.Printf("\n%s exited with code 0\n", flag.Arg(0))
 	}
-	hash := common.FromHex(strings.TrimSpace(string(bytes)))
+
+	if index := strings.Index(string(input), prefix); prefix != "" && index >= 0 {
+		input = input[index+len(prefix):]
+	}
+	if index := strings.Index(string(input), suffix); suffix != "" && index >= 0 {
+		input = input[:index]
+	}
+
+	fmt.Println()
+	hash := common.FromHex(strings.TrimSpace(string(input)))
 	if len(hash) != 66 {
-		log.Fatalf("Expected EIP-712 hex string with 66 bytes, got %d bytes, value: %s", len(bytes), string(bytes))
+		log.Fatalf("Expected EIP-712 hex string with 66 bytes, got %d bytes, value: %s", len(input), string(input))
 	}
 
 	s, err := createSigner(privateKey, mnemonic, hdPath)
@@ -77,6 +103,18 @@ func main() {
 	fmt.Printf("\nData: 0x%s\n", hex.EncodeToString(hash))
 	fmt.Printf("Signer: %s\n", s.address().String())
 	fmt.Printf("Signature: %s\n", hex.EncodeToString(signature))
+}
+
+func run(workdir, name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = workdir
+
+	var buffer bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &buffer)
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	return buffer.Bytes(), err
 }
 
 func createSigner(privateKey, mnemonic, hdPath string) (signer, error) {
