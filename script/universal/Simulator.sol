@@ -74,46 +74,31 @@ abstract contract Simulator is CommonBase {
         );
         string memory username = abi.decode(userData, (string));
 
-        // url encoded JSON
+        // the following characters are url encoded: []{}
         string memory stateOverrides = "%5B";
         for (uint256 i; i < _overrides.length; i++) {
-            if (i > 0) {
-                stateOverrides = string.concat(
-                    stateOverrides,
-                    "%2C"
-                );
-            }
+            SimulationStateOverride memory _override = _overrides[i];
+            if (i > 0) stateOverrides = string.concat(stateOverrides, ",");
             stateOverrides = string.concat(
                 stateOverrides,
-                "%7B%22contractAddress%22%3A%22",
-                vm.toString(_overrides[i].contractAddress),
-                "%22%2C%22storage%22%3A%5B"
+                "%7B\"contractAddress\":\"",
+                vm.toString(_override.contractAddress),
+                "\",\"storage\":%5B"
             );
-            for (uint256 j; j < _overrides[i].overrides.length; j++) {
-                if (j > 0) {
-                    stateOverrides = string.concat(
-                        stateOverrides,
-                        "%2C"
-                    );
-                }
+            for (uint256 j; j < _override.overrides.length; j++) {
+                if (j > 0) stateOverrides = string.concat(stateOverrides, ",");
                 stateOverrides = string.concat(
                     stateOverrides,
-                    "%7B%22key%22%3A%22",
-                    vm.toString(_overrides[i].overrides[j].key),
-                    "%22%2C%22value%22%3A%22",
-                    vm.toString(_overrides[i].overrides[j].value),
-                    "%22%7D"
+                    "%7B\"key\":\"",
+                    vm.toString(_override.overrides[j].key),
+                    "\",\"value\":\"",
+                    vm.toString(_override.overrides[j].value),
+                    "\"%7D"
                 );
             }
-            stateOverrides = string.concat(
-                stateOverrides,
-                "%5D%7D"
-            );
+            stateOverrides = string.concat(stateOverrides, "%5D%7D");
         }
-        stateOverrides = string.concat(
-            stateOverrides,
-            "%5D"
-        );
+        stateOverrides = string.concat(stateOverrides, "%5D");
 
         string memory str = string.concat(
             "https://dashboard.tenderly.co/",
