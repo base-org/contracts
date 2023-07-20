@@ -103,16 +103,16 @@ abstract contract MultisigBase is Simulator {
         return calls;
     }
 
-    function addressSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
+    function prevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
         LibSort.sort(_addresses);
         bytes memory signatures;
         for (uint256 i; i < _addresses.length; i++) {
-            signatures = bytes.concat(signatures, addressSignature(_addresses[i]));
+            signatures = bytes.concat(signatures, prevalidatedSignature(_addresses[i]));
         }
         return signatures;
     }
 
-    function addressSignature(address _address) internal pure returns (bytes memory) {
+    function prevalidatedSignature(address _address) internal pure returns (bytes memory) {
         uint8 v = 1;
         bytes32 s = bytes32(0);
         bytes32 r = bytes32(uint256(uint160(_address)));

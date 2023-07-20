@@ -85,7 +85,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         address[] memory approvers = _getApprovers(nestedSafeAddress, nestedCalls);
-        bytes memory signatures = addressSignatures(approvers);
+        bytes memory signatures = prevalidatedSignatures(approvers);
 
         bool success = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
         if (success) _postCheck();
@@ -157,7 +157,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 0,
                 address(0),
                 payable(address(0)),
-                addressSignature(address(multicall))
+                prevalidatedSignature(address(multicall))
             )
         );
         calls[0] = IMulticall3.Call3({
@@ -179,7 +179,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 0,
                 address(0),
                 payable(address(0)),
-                addressSignature(_signerSafe)
+                prevalidatedSignature(_signerSafe)
             )
         );
         calls[1] = IMulticall3.Call3({
@@ -189,7 +189,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         });
 
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
-        // The state change simulation sets the multisig threshold to 1 in the simulation to enable an approver to see what the final state change will look like upon transaction execution. The multisig threshold will not actually change in the transaction execution.
+        // The state change simulation sets the multisig threshold to 1 in the
+        // simulation to enable an approver to see what the final state change
+        // will look like upon transaction execution. The multisig threshold
+        // will not actually change in the transaction execution.
         overrides[0] = overrideSafeThreshold(_safe);
         // Set the signer safe threshold to 1, and set the owner to multicall.
         // This is a little hacky; reason is to simulate both the approve hash
