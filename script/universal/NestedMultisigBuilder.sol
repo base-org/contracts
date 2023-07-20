@@ -189,7 +189,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         });
 
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
-        // set the nested safe threshold to 1:
+        // The state change simulation sets the multisig threshold to 1 in the simulation to enable an approver to see what the final state change will look like upon transaction execution. The multisig threshold will not actually change in the transaction execution.
         overrides[0] = overrideSafeThreshold(_safe);
         // Set the signer safe threshold to 1, and set the owner to multicall.
         // This is a little hacky; reason is to simulate both the approve hash
