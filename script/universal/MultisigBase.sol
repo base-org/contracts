@@ -2,13 +2,12 @@
 pragma solidity 0.8.15;
 
 import { console } from "forge-std/console.sol";
-import { CommonBase } from "forge-std/Base.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
-import { EnhancedScript } from "@eth-optimism-bedrock/scripts/universal/EnhancedScript.sol";
 import { LibSort } from "@eth-optimism-bedrock/scripts/libraries/LibSort.sol";
+import "./Simulator.sol";
 
-abstract contract MultisigBase is CommonBase, EnhancedScript {
+abstract contract MultisigBase is Simulator {
     IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
 
     function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
@@ -104,16 +103,20 @@ abstract contract MultisigBase is CommonBase, EnhancedScript {
         return calls;
     }
 
-    function addressSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
+    function prevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
         LibSort.sort(_addresses);
         bytes memory signatures;
-        uint8 v = 1;
-        bytes32 s = bytes32(0);
         for (uint256 i; i < _addresses.length; i++) {
-            bytes32 r = bytes32(uint256(uint160(_addresses[i])));
-            signatures = bytes.concat(signatures, abi.encodePacked(r, s, v));
+            signatures = bytes.concat(signatures, prevalidatedSignature(_addresses[i]));
         }
         return signatures;
+    }
+
+    function prevalidatedSignature(address _address) internal pure returns (bytes memory) {
+        uint8 v = 1;
+        bytes32 s = bytes32(0);
+        bytes32 r = bytes32(uint256(uint160(_address)));
+        return abi.encodePacked(r, s, v);
     }
 
     function sortSignatures(bytes memory _signatures, bytes32 dataHash) internal pure returns (bytes memory) {
