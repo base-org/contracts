@@ -49,7 +49,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * multisig (see step 2).
      */
     function sign(address _signerSafe) public view returns (bool) {
-        IMulticall3.Call3 memory call = _generateApproveCall();
+        address nestedSafeAddress = _ownerSafe();
+        IMulticall3.Call3[] memory nestedCalls = _buildCalls();
+        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
+        _simulateForSigner(_signerSafe, nestedSafeAddress, nestedCalls);
         _printDataToSign(_signerSafe, toArray(call));
         return true;
     }
@@ -64,7 +67,9 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     function approve(address _signerSafe, bytes memory _signatures) public returns (bool) {
         vm.startBroadcast();
 
-        IMulticall3.Call3 memory call = _generateApproveCall();
+        address nestedSafeAddress = _ownerSafe();
+        IMulticall3.Call3[] memory nestedCalls = _buildCalls();
+        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
         return _executeTransaction(_signerSafe, toArray(call), _signatures);
     }
 
@@ -87,27 +92,23 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         return success;
     }
 
-    function _generateApproveCall() internal view returns (IMulticall3.Call3 memory) {
-        address nestedSafeAddress = _ownerSafe();
-        IGnosisSafe nestedSafe = IGnosisSafe(payable(nestedSafeAddress));
-        IMulticall3.Call3[] memory nestedCalls = _buildCalls();
-        bytes32 nestedHash = _getTransactionHash(nestedSafeAddress, nestedCalls);
+    function _generateApproveCall(address _safe, IMulticall3.Call3[] memory _calls) internal view returns (IMulticall3.Call3 memory) {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+        bytes32 hash = _getTransactionHash(_safe, _calls);
+
         console.log("Nested hash:");
-        console.logBytes32(nestedHash);
+        console.logBytes32(hash);
 
         return IMulticall3.Call3({
-            target: nestedSafeAddress,
+            target: _safe,
             allowFailure: false,
-            callData: abi.encodeCall(
-                nestedSafe.approveHash,
-                (nestedHash)
-            )
+            callData: abi.encodeCall(safe.approveHash, (hash))
         });
     }
 
-    function _getApprovers(address safeAddr, IMulticall3.Call3[] memory calls) internal view returns (address[] memory) {
-        IGnosisSafe safe = IGnosisSafe(payable(safeAddr));
-        bytes32 hash = _getTransactionHash(safeAddr, calls);
+    function _getApprovers(address _safe, IMulticall3.Call3[] memory _calls) internal view returns (address[] memory) {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+        bytes32 hash = _getTransactionHash(_safe, _calls);
 
         // get a list of owners that have approved this transaction
         uint256 threshold = safe.getThreshold();
@@ -127,5 +128,81 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         }
         require(approverIndex == threshold, "not enough approvals");
         return approvers;
+    }
+
+    function _simulateForSigner(address _signerSafe, address _safe, IMulticall3.Call3[] memory _calls) internal view {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+        IGnosisSafe signerSafe = IGnosisSafe(payable(_signerSafe));
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
+        bytes32 hash = _getTransactionHash(_safe, data);
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
+
+        // simulate an approveHash, so that signer can verify the data they are signing
+        bytes memory approveHashData = abi.encodeCall(IMulticall3.aggregate3, (toArray(
+            IMulticall3.Call3({
+                target: _safe,
+                allowFailure: false,
+                callData: abi.encodeCall(safe.approveHash, (hash))
+            })
+        )));
+        bytes memory approveHashExec = abi.encodeCall(
+            signerSafe.execTransaction,
+            (
+                address(multicall),
+                0,
+                approveHashData,
+                Enum.Operation.DelegateCall,
+                0,
+                0,
+                0,
+                address(0),
+                payable(address(0)),
+                addressSignature(address(multicall))
+            )
+        );
+        calls[0] = IMulticall3.Call3({
+            target: _signerSafe,
+            allowFailure: false,
+            callData: approveHashExec
+        });
+
+        // simulate the final state changes tx, so that signer can verify the final results
+        bytes memory finalExec = abi.encodeCall(
+            safe.execTransaction,
+            (
+                address(multicall),
+                0,
+                data,
+                Enum.Operation.DelegateCall,
+                0,
+                0,
+                0,
+                address(0),
+                payable(address(0)),
+                addressSignature(_signerSafe)
+            )
+        );
+        calls[1] = IMulticall3.Call3({
+            target: _safe,
+            allowFailure: false,
+            callData: finalExec
+        });
+
+        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
+        // set the nested safe threshold to 1:
+        overrides[0] = overrideSafeThreshold(_safe);
+        // Set the signer safe threshold to 1, and set the owner to multicall.
+        // This is a little hacky; reason is to simulate both the approve hash
+        // and the final tx in a single Tenderly tx, using multicall. Given an
+        // EOA cannot DELEGATECALL, multicall needs to own the signer safe.
+        overrides[1] = overrideSafeThresholdAndOwner(_signerSafe, address(multicall));
+
+        console.log("Simulation link:");
+        logSimulationLink({
+            _to: address(multicall),
+            _data: abi.encodeCall(IMulticall3.aggregate3, (calls)),
+            _from: msg.sender,
+            _overrides: overrides
+        });
     }
 }
