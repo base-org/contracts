@@ -41,7 +41,6 @@ contract BalanceTrackerTest is CommonTest {
         vm.prank(proxyAdminOwner);
         balanceTrackerProxy.upgradeTo(address(balanceTrackerImplementation));
         balanceTracker = BalanceTracker(payable(address(balanceTrackerProxy)));
-        
     }
 
     function test_constructor_fail_profitWallet_zeroAddress() external {
@@ -217,6 +216,28 @@ contract BalanceTrackerTest is CommonTest {
         assertEq(l2OutputProposer.balance, ZERO_VALUE);
     }
 
+    function test_processFees_success_partialFunds() external {
+        uint256 partialBalanceTrackerBalance = INITIAL_BALANCE_TRACKER_BALANCE/3;
+        vm.deal(address(balanceTracker), partialBalanceTrackerBalance);
+        balanceTracker.initialize(
+            systemAddresses,
+            targetBalances
+        );
+        vm.expectEmit(true, true, true, true, address(balanceTracker));
+        emit ProcessedFunds(batchSender, true, batchSenderTargetBalance, partialBalanceTrackerBalance);
+        vm.expectEmit(true, true, true, true, address(balanceTracker));
+        emit ProcessedFunds(l2OutputProposer, true, l2OutputProposerTargetBalance, ZERO_VALUE);
+        vm.expectEmit(true, true, true, true, address(balanceTracker));
+        emit SentProfit(profitWallet, true, ZERO_VALUE);
+
+        balanceTracker.processFees();
+
+        assertEq(address(balanceTracker).balance, ZERO_VALUE);
+        assertEq(profitWallet.balance, ZERO_VALUE);
+        assertEq(batchSender.balance, partialBalanceTrackerBalance);
+        assertEq(l2OutputProposer.balance, ZERO_VALUE);
+    }
+
     function test_processFees_success_skipsAddressesAtTargetBalance() external {
         vm.deal(address(balanceTracker), INITIAL_BALANCE_TRACKER_BALANCE);
         vm.deal(batchSender, batchSenderTargetBalance);
@@ -225,6 +246,10 @@ contract BalanceTrackerTest is CommonTest {
             systemAddresses,
             targetBalances
         );
+        vm.expectEmit(true, true, true, true, address(balanceTracker));
+        emit ProcessedFunds(batchSender, false, ZERO_VALUE, ZERO_VALUE);
+        vm.expectEmit(true, true, true, true, address(balanceTracker));
+        emit ProcessedFunds(l2OutputProposer, false, ZERO_VALUE, ZERO_VALUE);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit SentProfit(profitWallet, true, INITIAL_BALANCE_TRACKER_BALANCE);
 

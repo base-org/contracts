@@ -9,7 +9,7 @@ import { ReentrancyGuardUpgradeable }
 import { SafeCall } from "@eth-optimism-bedrock/contracts/libraries/SafeCall.sol";
 
 /**
-* @title BalanceTracker
+ * @title BalanceTracker
  * @dev Funds system addresses and sends the remaining profits to the profit wallet.
  */
 contract BalanceTracker is ReentrancyGuardUpgradeable {
@@ -48,7 +48,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
     /**
      * @dev Emitted when the BalanceTracker sends funds to a system address.
      * @param _systemAddress The system address being funded.
-     * @param _success A boolean denoting the success or failure of the fund send.
+     * @param _success A boolean denoting whether a fund send occurred and its success or failure.
      * @param _balanceNeeded The amount of funds the given system address needs to reach its target balance.
      * @param _balanceSent The amount of funds sent to the system address.
      */
@@ -158,14 +158,12 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      */
     function refillBalanceIfNeeded(address _systemAddress, uint256 _targetBalance) internal {
         if (_systemAddress.balance >= _targetBalance) {
+            emit ProcessedFunds(_systemAddress, false, 0, 0);
             return;
         }
         
         uint256 valueNeeded = _targetBalance - _systemAddress.balance;
-        uint256 valueToSend = valueNeeded;
-        if (valueToSend > address(this).balance) {
-            valueToSend = address(this).balance;
-        }
+        uint256 valueToSend = valueNeeded > address(this).balance ? address(this).balance : valueNeeded;
 
         bool success = SafeCall.send(_systemAddress, gasleft(), valueToSend);
         emit ProcessedFunds(_systemAddress, success, valueNeeded, valueToSend);
