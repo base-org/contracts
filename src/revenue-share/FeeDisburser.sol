@@ -104,7 +104,7 @@ contract FeeDisburser {
     ) {
         require(_optimismWallet != address(0), "FeeDisburser: OptimismWallet cannot be address(0)");
         require(_l1Wallet != address(0), "FeeDisburser: L1Wallet cannot be address(0)");
-        require(_feeDisbursementInterval > 0, "FeeDisburser: FeeDisbursementInterval cannot be zero");
+        require(_feeDisbursementInterval >= 24 hours, "FeeDisburser: FeeDisbursementInterval cannot be less than 24 hours");
 
         OPTIMISM_WALLET = _optimismWallet;
         L1_WALLET = _l1Wallet;
@@ -193,6 +193,10 @@ contract FeeDisburser {
         require(
             FeeVault(_feeVault).WITHDRAWAL_NETWORK() == FeeVault.WithdrawalNetwork.L2, 
             "FeeDisburser: FeeVault must withdraw to L2"
+        );
+        require(
+            FeeVault(_feeVault).RECIPIENT() == address(this), 
+            "FeeDisburser: FeeVault must withdraw to FeeDisburser contract"
         );
         if (_feeVault.balance >= FeeVault(_feeVault).MIN_WITHDRAWAL_AMOUNT()) {
             FeeVault(_feeVault).withdraw();

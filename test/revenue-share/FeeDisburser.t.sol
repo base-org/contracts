@@ -40,7 +40,7 @@ contract FeeDisburserTest is CommonTest {
     // 101% denominated in basis points
     uint256 tooLargeBasisPoints = 10_001;
     // Denominated in seconds
-    uint256 feeDisbursementInterval = 60;
+    uint256 feeDisbursementInterval = 24 hours;
     uint256 minimumWithdrawalAmount = 10 ether;
     address proxyAdminOwner = address(2048);
 
@@ -78,11 +78,11 @@ contract FeeDisburserTest is CommonTest {
         new FeeDisburser(optimismWallet, payable(address(0)), feeDisbursementInterval);
     }
 
-    function test_constructor_fail_feeDisbursementInterval_Zero() external {
+    function test_constructor_fail_feeDisbursementInterval_lessThan24Hours() external {
         vm.expectRevert(
-            "FeeDisburser: FeeDisbursementInterval cannot be zero"
+            "FeeDisburser: FeeDisbursementInterval cannot be less than 24 hours"
         );
-        new FeeDisburser(optimismWallet, l1Wallet, ZERO_VALUE);
+        new FeeDisburser(optimismWallet, l1Wallet, 24 hours - 1);
     }
 
     function test_constructor_success() external {
@@ -109,8 +109,18 @@ contract FeeDisburserTest is CommonTest {
         feeDisburser.disburseFees();
     }
 
+    function test_disburseFees_fail_feeVaultWithdrawalToAnotherAddress() external {
+        sequencerFeeVault = new SequencerFeeVault(admin, minimumWithdrawalAmount, FeeVault.WithdrawalNetwork.L2);
+        vm.etch(Predeploys.SEQUENCER_FEE_WALLET, address(sequencerFeeVault).code);
+
+        vm.expectRevert(
+            "FeeDisburser: FeeVault must withdraw to FeeDisburser contract"
+        );
+        feeDisburser.disburseFees();
+    }
+
     function test_disburseFees_fail_minimumWithdrawalReversion() external {
-        FeeVaultRevert feeVaultRevert = new FeeVaultRevert();
+        FeeVaultRevert feeVaultRevert = new FeeVaultRevert(address(feeDisburser));
         vm.etch(Predeploys.SEQUENCER_FEE_WALLET, address(feeVaultRevert).code);
 
         vm.expectRevert(
