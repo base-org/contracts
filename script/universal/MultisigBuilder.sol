@@ -49,7 +49,10 @@ abstract contract MultisigBuilder is MultisigBase {
      * used by a separate tx executor address in step 2, which doesn't have to be a signer.
      */
     function sign() public view returns (bool) {
-        _printDataToSign(_ownerSafe(), _buildCalls());
+        address safe = _ownerSafe();
+        IMulticall3.Call3[] memory calls = _buildCalls();
+        _simulateForSigner(safe, calls);
+        _printDataToSign(safe, calls);
         return true;
     }
 
@@ -67,5 +70,37 @@ abstract contract MultisigBuilder is MultisigBase {
         bool success = _executeTransaction(_ownerSafe(), _buildCalls(), _signatures);
         if (success) _postCheck();
         return success;
+    }
+
+    function _simulateForSigner(address _safe, IMulticall3.Call3[] memory _calls) internal view {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
+
+        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](1);
+        // The state change simulation sets the multisig threshold to 1 in the
+        // simulation to enable an approver to see what the final state change
+        // will look like upon transaction execution. The multisig threshold
+        // will not actually change in the transaction execution.
+        overrides[0] = overrideSafeThreshold(_safe);
+        logSimulationLink({
+            _to: _safe,
+            _data: abi.encodeCall(
+                safe.execTransaction,
+                (
+                    address(multicall),
+                    0,
+                    data,
+                    Enum.Operation.DelegateCall,
+                    0,
+                    0,
+                    0,
+                    address(0),
+                    payable(address(0)),
+                    prevalidatedSignature(msg.sender)
+                )
+            ),
+            _from: msg.sender,
+            _overrides: overrides
+        });
     }
 }
