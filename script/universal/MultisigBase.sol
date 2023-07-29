@@ -45,7 +45,7 @@ abstract contract MultisigBase is Simulator {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
 
-        console.log("Data to sign:");
+        console.log("---\nData to sign:");
         console.log("vvvvvvvv");
         console.logBytes(txData);
         console.log("^^^^^^^^");
