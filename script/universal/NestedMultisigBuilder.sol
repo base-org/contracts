@@ -52,8 +52,13 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
+        bytes32 hash = _getTransactionHash(_signerSafe, toArray(call));
+
+        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", _signerSafe);
+        console.logBytes32(hash);
         _simulateForSigner(_signerSafe, nestedSafeAddress, nestedCalls);
         _printDataToSign(_signerSafe, toArray(call));
+
         return true;
     }
 
@@ -70,6 +75,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
+
+        address[] memory approvers = _getApprovers(_signerSafe, toArray(call));
+        _signatures = bytes.concat(_signatures, prevalidatedSignatures(approvers));
+
         return _executeTransaction(_signerSafe, toArray(call), _signatures);
     }
 
@@ -96,7 +105,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes32 hash = _getTransactionHash(_safe, _calls);
 
-        console.log("Nested hash:");
+        console.log("---\nNested hash:");
         console.logBytes32(hash);
 
         return IMulticall3.Call3({
@@ -122,12 +131,15 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 approvers[approverIndex] = owner;
                 approverIndex++;
                 if (approverIndex == threshold) {
-                    break;
+                    return approvers;
                 }
             }
         }
-        require(approverIndex == threshold, "not enough approvals");
-        return approvers;
+        address[] memory subset = new address[](approverIndex);
+        for (uint256 i; i < approverIndex; i++) {
+            subset[i] = approvers[i];
+        }
+        return subset;
     }
 
     function _simulateForSigner(address _signerSafe, address _safe, IMulticall3.Call3[] memory _calls) internal view {
@@ -200,7 +212,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // EOA cannot DELEGATECALL, multicall needs to own the signer safe.
         overrides[1] = overrideSafeThresholdAndOwner(_signerSafe, address(multicall));
 
-        console.log("Simulation link:");
+        console.log("---\nSimulation link:");
         logSimulationLink({
             _to: address(multicall),
             _data: abi.encodeCall(IMulticall3.aggregate3, (calls)),
