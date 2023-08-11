@@ -65,10 +65,7 @@ contract FeeDisburser {
      *      withdrawals from Net Revenue calculations.
      */
     uint256 public netFeeRevenue;
-    /**
-     * @dev Tracks aggregated value that can be withdrawn by Optimism.
-     */
-    uint256 public optimismHoldings;
+
 
     /*//////////////////////////////////////////////////////////////
                             Events
@@ -154,48 +151,21 @@ contract FeeDisburser {
         uint256 optimismGrossRevenueShare = feeBalance * OPTIMISM_GROSS_REVENUE_SHARE_BASIS_POINTS / BASIS_POINT_SCALE;
 
         // Optimism's revenue share is the maximum of net and gross revenue
-        uint256 optimismRevenueShare = Math.max(optimismNetRevenueShare, optimismGrossRevenueShare) + optimismHoldings;
+        uint256 optimismRevenueShare = Math.max(optimismNetRevenueShare, optimismGrossRevenueShare);
 
         // Send Optimism their revenue share on L2
-        bool success = SafeCall.send(OPTIMISM_WALLET, gasleft(), optimismRevenueShare);
-
-        uint256 withdrawalAmount = address(this).balance;
-        if (success) {
-            optimismHoldings = 0;
-        } else {
-            withdrawalAmount -= optimismRevenueShare;
-            optimismHoldings = optimismRevenueShare;
-        }
+        require(
+            SafeCall.send(OPTIMISM_WALLET, gasleft(), optimismRevenueShare),
+            "FeeDisburser: Failed to send funds to Optimism"
+        );
 
         // Send remaining funds to L1 wallet on L1
-        L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).bridgeETHTo{ value: withdrawalAmount }(
+        L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).bridgeETHTo{ value: address(this).balance }(
             L1_WALLET,
             WITHDRAWAL_MIN_GAS,
             bytes("")
         );
         emit FeesDisbursed(lastDisbursementTime, optimismRevenueShare, feeBalance);
-    }
-
-    /**
-     * @dev Allows Optimism to withdraw any funds that are remaining in the contract
-     */
-    function withdrawOptimismFunds() external virtual {
-        require(
-            msg.sender == OPTIMISM_WALLET, // TODO: Might want to define some EOA they can initiate withdrawal from
-            "FeeDisburser: Optimism holdings could not be withdrawn"
-        );
-
-        require(
-            address(this).balance >= optimismHoldings, // TODO: think through if there are any scenarios that could actually lead to this -- should we add some checks around this in disburseFees above?
-            "FeeDisburser: Not enough funds to withdraw"
-        );
-
-        require(
-            SafeCall.send(OPTIMISM_WALLET, gasleft(), optimismHoldings),
-            "FeeDisburser: Optimism holdings could not be withdrawn"
-        );
-
-        optimismHoldings = 0;
     }
 
     /**

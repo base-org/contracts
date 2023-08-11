@@ -119,6 +119,13 @@ contract FeeDisburserTest is CommonTest {
         feeDisburser.disburseFees();
     }
 
+    // function test_disburseFees_fail_sendToOptimismFails() external {
+    //     vm.expectRevert(
+    //         "FeeDisburser: Failed to send funds to Optimism"
+    //     );
+    //     feeDisburser.disburseFees();
+    // }
+
     function test_disburseFees_fail_minimumWithdrawalReversion() external {
         FeeVaultRevert feeVaultRevert = new FeeVaultRevert(address(feeDisburser));
         vm.etch(Predeploys.SEQUENCER_FEE_WALLET, address(feeVaultRevert).code);
