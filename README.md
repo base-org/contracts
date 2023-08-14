@@ -8,5 +8,5 @@ For contract deployment artifacts, see [base-org/contract-deployments](https://g
 
 * If you don't have foundry installed, run `make install-foundry`.
 * Copy `.env.example` to `.env` and fill in the variables.
-* `make solidity-deps`
-* Test contracts: `make solidity-test`
+* `make deps`
+* Test contracts: `make test`
