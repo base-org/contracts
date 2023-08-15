@@ -115,9 +115,10 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
             "BalanceTracker: systemAddresses cannot have a length greater than 20");
         require(systemAddresesLength == _targetBalances.length, 
             "BalanceTracker: systemAddresses and targetBalances length must be equal");
-        for (uint256 i = 0; i < systemAddresesLength; i++) {
+        for (uint256 i; i < systemAddresesLength;) {
             require(_systemAddresses[i] != address(0), "BalanceTracker: systemAddresses cannot contain address(0)");
             require(_targetBalances[i] > 0, "BalanceTracker: targetBalances cannot contain 0 target");
+            unchecked { i++; }
         }
 
         systemAddresses = _systemAddresses;
@@ -135,8 +136,9 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
         require(systemAddresesLength > 0, 
             "BalanceTracker: systemAddresses cannot have a length of zero");
         // Refills balances of systems addresses up to their target balances
-        for (uint256 i = 0; i < systemAddresesLength; i++) {
+        for (uint256 i; i < systemAddresesLength;) {
             refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
+            unchecked { i++; }
         }
 
         // Send remaining profits to profit wallet
