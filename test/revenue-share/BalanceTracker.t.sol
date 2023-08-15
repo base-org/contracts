@@ -62,6 +62,17 @@ contract BalanceTrackerTest is CommonTest {
         assertEq(balanceTracker.PROFIT_WALLET(), profitWallet);
     }
 
+    function test_initializer_fail_systemAddresses_zeroLength() external {
+        delete systemAddresses;
+        vm.expectRevert(
+            "BalanceTracker: systemAddresses cannot have a length of zero"
+        );
+        balanceTracker.initialize(
+            systemAddresses,
+            targetBalances
+        );
+    }
+
     function test_initializer_fail_systemAddresses_greaterThanMaxLength() external {
         for (;systemAddresses.length <= balanceTracker.MAX_SYSTEM_ADDRESS_COUNT();) systemAddresses.push(payable(address(0)));
         
@@ -145,6 +156,14 @@ contract BalanceTrackerTest is CommonTest {
         assertEq(profitWallet.balance, expectedProfitWalletBalance);
         assertEq(batchSender.balance, ZERO_VALUE);
         assertEq(l2OutputProposer.balance, l2OutputProposerTargetBalance);
+    }
+
+    function test_processFees_fail_whenNotInitialized() external {
+        vm.expectRevert(
+            "BalanceTracker: systemAddresses cannot have a length of zero"
+        );
+        
+        balanceTracker.processFees();
     }
 
     function test_processFees_success_continuesWhenSystemAddressReverts() external {

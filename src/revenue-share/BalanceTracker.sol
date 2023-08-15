@@ -109,6 +109,8 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
         uint256[] memory _targetBalances
     ) external initializer {
         uint256 systemAddresesLength = _systemAddresses.length;
+        require(systemAddresesLength > 0, 
+            "BalanceTracker: systemAddresses cannot have a length of zero");
         require(systemAddresesLength <= MAX_SYSTEM_ADDRESS_COUNT, 
             "BalanceTracker: systemAddresses cannot have a length greater than 20");
         require(systemAddresesLength == _targetBalances.length, 
@@ -129,8 +131,11 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * 
      */
     function processFees() external nonReentrant {
+        uint256 systemAddresesLength = systemAddresses.length;
+        require(systemAddresesLength > 0, 
+            "BalanceTracker: systemAddresses cannot have a length of zero");
         // Refills balances of systems addresses up to their target balances
-        for (uint256 i = 0; i < systemAddresses.length; i++) {
+        for (uint256 i = 0; i < systemAddresesLength; i++) {
             refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
         }
 
