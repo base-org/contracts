@@ -162,13 +162,15 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _targetBalance The target balance for the system address being funded.
      */
     function refillBalanceIfNeeded(address _systemAddress, uint256 _targetBalance) internal {
-        if (_systemAddress.balance >= _targetBalance) {
+         uint256 systemAddressBalance = _systemAddress.balance;
+        if (systemAddressBalance >= _targetBalance) {
             emit ProcessedFunds(_systemAddress, false, 0, 0);
             return;
         }
         
-        uint256 valueNeeded = _targetBalance - _systemAddress.balance;
-        uint256 valueToSend = valueNeeded > address(this).balance ? address(this).balance : valueNeeded;
+        uint256 valueNeeded = _targetBalance - systemAddressBalance;
+        uint256 balanceTrackerBalance = address(this).balance;
+        uint256 valueToSend = valueNeeded > balanceTrackerBalance ? balanceTrackerBalance : valueNeeded;
 
         bool success = SafeCall.send(_systemAddress, gasleft(), valueToSend);
         emit ProcessedFunds(_systemAddress, success, valueNeeded, valueToSend);
