@@ -121,6 +121,7 @@ contract FeeDisburserTest is CommonTest {
     }
 
     function test_disburseFees_fail_sendToOptimismFails() external {
+        // Define a new feeDisburser for which the OP Wallet always reverts when receiving funds
         OptimismWalletRevert optimismWalletRevert = new OptimismWalletRevert();
         FeeDisburser feeDisburser2 = new FeeDisburser(payable(address(optimismWalletRevert)), l1Wallet, feeDisbursementInterval);
 
@@ -133,15 +134,6 @@ contract FeeDisburserTest is CommonTest {
         vm.etch(Predeploys.L1_FEE_VAULT, address(l1FeeVault).code);
 
         vm.deal(Predeploys.SEQUENCER_FEE_WALLET, minimumWithdrawalAmount);
-        vm.mockCall(Predeploys.L2_STANDARD_BRIDGE,
-            abi.encodeWithSignature(
-                "bridgeETHTo(address,uint256,bytes)",
-                l1Wallet,
-                WITHDRAWAL_MIN_GAS,
-                NULL_BYTES
-            ),
-            NULL_BYTES
-        );
 
         vm.expectRevert(
             "FeeDisburser: Failed to send funds to Optimism"
