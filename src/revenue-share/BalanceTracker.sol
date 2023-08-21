@@ -109,13 +109,16 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
         uint256[] memory _targetBalances
     ) external initializer {
         uint256 systemAddresesLength = _systemAddresses.length;
+        require(systemAddresesLength > 0, 
+            "BalanceTracker: systemAddresses cannot have a length of zero");
         require(systemAddresesLength <= MAX_SYSTEM_ADDRESS_COUNT, 
             "BalanceTracker: systemAddresses cannot have a length greater than 20");
         require(systemAddresesLength == _targetBalances.length, 
             "BalanceTracker: systemAddresses and targetBalances length must be equal");
-        for (uint256 i = 0; i < systemAddresesLength; i++) {
+        for (uint256 i; i < systemAddresesLength;) {
             require(_systemAddresses[i] != address(0), "BalanceTracker: systemAddresses cannot contain address(0)");
             require(_targetBalances[i] > 0, "BalanceTracker: targetBalances cannot contain 0 target");
+            unchecked { i++; }
         }
 
         systemAddresses = _systemAddresses;
@@ -129,9 +132,13 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * 
      */
     function processFees() external nonReentrant {
+        uint256 systemAddresesLength = systemAddresses.length;
+        require(systemAddresesLength > 0, 
+            "BalanceTracker: systemAddresses cannot have a length of zero");
         // Refills balances of systems addresses up to their target balances
-        for (uint256 i = 0; i < systemAddresses.length; i++) {
+        for (uint256 i; i < systemAddresesLength;) {
             refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
+            unchecked { i++; }
         }
 
         // Send remaining profits to profit wallet
@@ -157,13 +164,15 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _targetBalance The target balance for the system address being funded.
      */
     function refillBalanceIfNeeded(address _systemAddress, uint256 _targetBalance) internal {
-        if (_systemAddress.balance >= _targetBalance) {
+         uint256 systemAddressBalance = _systemAddress.balance;
+        if (systemAddressBalance >= _targetBalance) {
             emit ProcessedFunds(_systemAddress, false, 0, 0);
             return;
         }
         
-        uint256 valueNeeded = _targetBalance - _systemAddress.balance;
-        uint256 valueToSend = valueNeeded > address(this).balance ? address(this).balance : valueNeeded;
+        uint256 valueNeeded = _targetBalance - systemAddressBalance;
+        uint256 balanceTrackerBalance = address(this).balance;
+        uint256 valueToSend = valueNeeded > balanceTrackerBalance ? balanceTrackerBalance : valueNeeded;
 
         bool success = SafeCall.send(_systemAddress, gasleft(), valueToSend);
         emit ProcessedFunds(_systemAddress, success, valueNeeded, valueToSend);

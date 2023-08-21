@@ -119,7 +119,7 @@ contract FeeDisburser {
      * @dev Implements revenue share business logic as follows:
      *          Net Revenue             = sequencer FeeVault fee revenue + base FeeVault fee revenue
      *          Gross Revenue           = Net Revenue + l1 FeeVault fee revenue
-     *          Optimism Revenue Share  = Maximum of Net Revenue and Gross Revenue
+     *          Optimism Revenue Share  = Maximum of 15% of Net Revenue and 2.5% of Gross Revenue
      *          L1 Wallet Revenue Share = Gross Revenue - Optimism Revenue Share
      */
     function disburseFees() external virtual {
