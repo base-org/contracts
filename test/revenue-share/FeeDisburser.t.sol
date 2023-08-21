@@ -3,6 +3,7 @@ pragma solidity 0.8.15;
 
 import { CommonTest } from "test/CommonTest.t.sol";
 import { FeeVaultRevert } from "test/revenue-share/mocks/FeeVaultRevert.sol";
+import { OptimismWalletRevert } from "test/revenue-share/mocks/OptimismWalletRevert.sol";
 
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol"; 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
@@ -119,6 +120,27 @@ contract FeeDisburserTest is CommonTest {
         feeDisburser.disburseFees();
     }
 
+    function test_disburseFees_fail_sendToOptimismFails() external {
+        // Define a new feeDisburser for which the OP Wallet always reverts when receiving funds
+        OptimismWalletRevert optimismWalletRevert = new OptimismWalletRevert();
+        FeeDisburser feeDisburser2 = new FeeDisburser(payable(address(optimismWalletRevert)), l1Wallet, feeDisbursementInterval);
+
+        // Have the fee vaults point to the new fee disburser contract
+        sequencerFeeVault = new SequencerFeeVault(payable(address(feeDisburser2)), minimumWithdrawalAmount, FeeVault.WithdrawalNetwork.L2);
+        vm.etch(Predeploys.SEQUENCER_FEE_WALLET, address(sequencerFeeVault).code);
+        baseFeeVault = new BaseFeeVault(payable(address(feeDisburser2)), minimumWithdrawalAmount, FeeVault.WithdrawalNetwork.L2);
+        vm.etch(Predeploys.BASE_FEE_VAULT, address(baseFeeVault).code);
+        l1FeeVault = new L1FeeVault(payable(address(feeDisburser2)), minimumWithdrawalAmount, FeeVault.WithdrawalNetwork.L2);
+        vm.etch(Predeploys.L1_FEE_VAULT, address(l1FeeVault).code);
+
+        vm.deal(Predeploys.SEQUENCER_FEE_WALLET, minimumWithdrawalAmount);
+
+        vm.expectRevert(
+            "FeeDisburser: Failed to send funds to Optimism"
+        );
+        feeDisburser2.disburseFees();
+    }
+
     function test_disburseFees_fail_minimumWithdrawalReversion() external {
         FeeVaultRevert feeVaultRevert = new FeeVaultRevert(address(feeDisburser));
         vm.etch(Predeploys.SEQUENCER_FEE_WALLET, address(feeVaultRevert).code);
@@ -162,9 +184,9 @@ contract FeeDisburserTest is CommonTest {
         uint256 expectedOptimismWalletBalance = netFeeVaultBalance * optimismNetRevenueShareBasisPoints / BASIS_POINTS_SCALE;
         uint256 expectedBridgeWithdrawalBalance = totalFeeVaultBalance - expectedOptimismWalletBalance;
 
-        vm.mockCall(Predeploys.L2_STANDARD_BRIDGE, 
+        vm.mockCall(Predeploys.L2_STANDARD_BRIDGE,
             abi.encodeWithSignature(
-                "bridgeETHTo(address,uint256,bytes)", 
+                "bridgeETHTo(address,uint256,bytes)",
                 l1Wallet,
                 WITHDRAWAL_MIN_GAS,
                 NULL_BYTES

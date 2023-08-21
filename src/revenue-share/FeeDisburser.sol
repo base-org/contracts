@@ -154,7 +154,10 @@ contract FeeDisburser {
         uint256 optimismRevenueShare = Math.max(optimismNetRevenueShare, optimismGrossRevenueShare);
 
         // Send Optimism their revenue share on L2
-        SafeCall.send(OPTIMISM_WALLET, gasleft(), optimismRevenueShare);
+        require(
+            SafeCall.send(OPTIMISM_WALLET, gasleft(), optimismRevenueShare),
+            "FeeDisburser: Failed to send funds to Optimism"
+        );
 
         // Send remaining funds to L1 wallet on L1
         L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).bridgeETHTo{ value: address(this).balance }(
