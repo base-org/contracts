@@ -127,15 +127,10 @@ contract FeeDisburser {
             block.timestamp >= lastDisbursementTime + FEE_DISBURSEMENT_INTERVAL,
             "FeeDisburser: Disbursement interval not reached"
         );
-        lastDisbursementTime = block.timestamp;
 
         // Sequencer and base FeeVaults will withdraw fees to the FeeDisburser contract mutating netFeeRevenue
         feeVaultWithdrawal(payable(Predeploys.SEQUENCER_FEE_WALLET));
         feeVaultWithdrawal(payable(Predeploys.BASE_FEE_VAULT));
-        
-        // Net revenue is the sum of sequencer fees and base fees
-        uint256 optimismNetRevenueShare = netFeeRevenue * OPTIMISM_NET_REVENUE_SHARE_BASIS_POINTS / BASIS_POINT_SCALE;
-        netFeeRevenue = 0;
 
         feeVaultWithdrawal(payable(Predeploys.L1_FEE_VAULT));
 
@@ -147,6 +142,12 @@ contract FeeDisburser {
             emit NoFeesCollected();
             return;
         }
+
+        lastDisbursementTime = block.timestamp;
+
+        // Net revenue is the sum of sequencer fees and base fees
+        uint256 optimismNetRevenueShare = netFeeRevenue * OPTIMISM_NET_REVENUE_SHARE_BASIS_POINTS / BASIS_POINT_SCALE;
+        netFeeRevenue = 0;
 
         uint256 optimismGrossRevenueShare = feeBalance * OPTIMISM_GROSS_REVENUE_SHARE_BASIS_POINTS / BASIS_POINT_SCALE;
 

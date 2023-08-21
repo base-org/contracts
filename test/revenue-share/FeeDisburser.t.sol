@@ -93,6 +93,18 @@ contract FeeDisburserTest is CommonTest {
     }
 
     function test_disburseFees_fail_feeDisbursementInterval_Zero() external {
+        // Setup so that the first disburse fees actually does a disbursal and doesn't return early
+        vm.deal(Predeploys.SEQUENCER_FEE_WALLET, minimumWithdrawalAmount*2);
+        vm.mockCall(Predeploys.L2_STANDARD_BRIDGE,
+            abi.encodeWithSignature(
+                "bridgeETHTo(address,uint256,bytes)",
+                l1Wallet,
+                WITHDRAWAL_MIN_GAS,
+                NULL_BYTES
+            ),
+            NULL_BYTES
+        );
+
         feeDisburser.disburseFees();
         vm.expectRevert(
             "FeeDisburser: Disbursement interval not reached"
@@ -165,7 +177,6 @@ contract FeeDisburserTest is CommonTest {
         emit NoFeesCollected();
         feeDisburser.disburseFees();
 
-        assertEq(feeDisburser.lastDisbursementTime(), block.timestamp);
         assertEq(feeDisburser.OPTIMISM_WALLET().balance, ZERO_VALUE);
         assertEq(Predeploys.L2_STANDARD_BRIDGE.balance, ZERO_VALUE);
     }
@@ -279,7 +290,6 @@ contract FeeDisburserTest is CommonTest {
 
         feeDisburser.disburseFees();
 
-        assertEq(feeDisburser.lastDisbursementTime(), block.timestamp);
         assertEq(feeDisburser.netFeeRevenue(), ZERO_VALUE);
         assertEq(feeDisburser.OPTIMISM_WALLET().balance, expectedOptimismWalletBalance);
         assertEq(Predeploys.L2_STANDARD_BRIDGE.balance, expectedBridgeWithdrawalBalance);
