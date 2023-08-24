@@ -109,14 +109,19 @@ abstract contract Simulator is CommonBase {
             vm.toString(block.chainid),
             "&contractAddress=",
             vm.toString(_to),
-            "&rawFunctionInput=",
-            vm.toString(_data),
             "&from=",
             vm.toString(_from),
             "&stateOverrides=",
             stateOverrides
         );
-
-        console.log(str);
+        if (bytes(str).length + _data.length * 2 > 7980) {
+            // tenderly's nginx has issues with long URLs, so print the raw input data separately
+            str = string.concat(str, "\nInsert the following hex into the 'Raw input data' field:");
+            console.log(str);
+            console.log(vm.toString(_data));
+        } else {
+            str = string.concat(str, "&rawFunctionInput=", vm.toString(_data));
+            console.log(str);
+        }
     }
 }
