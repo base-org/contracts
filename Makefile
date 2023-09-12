@@ -9,7 +9,7 @@ install-foundry:
 	~/.foundry/bin/foundryup
 
 .PHONY: deps
-deps: checkout-op-commit
+deps: clean-lib checkout-op-commit
 	forge install --no-git github.com/foundry-rs/forge-std \
 		github.com/OpenZeppelin/openzeppelin-contracts@v4.7.3 \
 		github.com/OpenZeppelin/openzeppelin-contracts-upgradeable@v4.7.3 \
@@ -18,6 +18,10 @@ deps: checkout-op-commit
 .PHONY: test
 test:
 	forge test --ffi -vvv
+
+.PHONY: clean-lib
+clean-lib:
+	rm -rf lib
 
 .PHONY: checkout-op-commit
 checkout-op-commit:
