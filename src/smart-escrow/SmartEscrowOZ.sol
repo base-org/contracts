@@ -20,7 +20,8 @@ contract SmartEscrow is VestingWallet, AccessControl {
     bytes32 public constant BENEFICIARY_OWNER = keccak256("smartescrow.roles.beneficiary");
     bytes32 public constant BENEFACTOR_OWNER = keccak256("smartescrow.roles.benefactor");
     bytes32 public constant ESCROW_OWNER = keccak256("smartescrow.roles.escrowowner");
-
+    
+    address private _recipient;
     address private _benefactor;
     uint256 private _released;
     uint64 private immutable _vestingPeriod;
@@ -67,6 +68,7 @@ contract SmartEscrow is VestingWallet, AccessControl {
         _grantRole(BENEFICIARY_OWNER, beneficiaryOwner);
         _grantRole(BENEFACTOR_OWNER, benefactorOwner);
 
+        _recipient = beneficiaryAddress;
         _benefactor = benefactorAddress;
         _vestingPeriod = vestingPeriodSeconds;
         _initialTokens = numInitialTokens;
@@ -92,10 +94,10 @@ contract SmartEscrow is VestingWallet, AccessControl {
      */
     function updateBeneficiary(address newBeneficiary) external virtual onlyRole(BENEFICIARY_OWNER) {
         require(newBeneficiary != address(0), "SmartEscrow: newBeneficiary is zero address");
-        if (beneficiary() != newBeneficiary) {
-            address oldBeneficiary = beneficiary();
-            _beneficiary = newBeneficiary;
-            emit BeneficiaryUpdated(oldBeneficiary, beneficiary());
+        if (recipient() != newBeneficiary) {
+            address oldBeneficiary = recipient();
+            _recipient = newBeneficiary;
+            emit BeneficiaryUpdated(oldBeneficiary, recipient());
         }
     }
 
@@ -111,6 +113,13 @@ contract SmartEscrow is VestingWallet, AccessControl {
             _benefactor = newBenefactor;
             emit BenefactorUpdated(oldBenefactor, _benefactor);
         }
+    }
+
+    /**
+     * @dev Getter for the recipient address.
+     */
+    function recipient() public view virtual returns (address) {
+        return _recipient;
     }
 
     /**
@@ -164,8 +173,8 @@ contract SmartEscrow is VestingWallet, AccessControl {
         require (contractTerminated() == false, "SmartEscrow: Contract is terminated.");
         uint256 amount = releasable();
         _released += amount;
-        emit OPTransfered(amount, beneficiary());
-        SafeERC20.safeTransfer(OP_TOKEN, beneficiary(), amount);
+        emit OPTransfered(amount, recipient());
+        SafeERC20.safeTransfer(OP_TOKEN, recipient(), amount);
     }
 
     /**
