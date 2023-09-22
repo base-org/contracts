@@ -1,11 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import "./Errors.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
+
+/// @dev The error is thrown when an address is not set.
+error AddressIsZeroAddress();
+
+/// @dev The error is thrown when the start timestamp is zero.
+error StartTimeIsZero();
+
+/// @dev The error is thrown when the start timestamp is greater than the end timestamp.
+error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
+
+/// @dev The error is thrown when the vesting period is zero.
+error VestingPeriodIsZeroSeconds();
+
+/// @dev The error is thrown when the caller of the method is not the expected owner.
+error CallerIsNotOwner(address caller, address owner);
+
+/// @dev The error is thrown when the contract is terminated, when it should not be.
+error ContractIsTerminated();
+
+/// @dev The error is thrown when the contract is not terminated, when it should be.
+error ContractIsNotTerminated();
 
 /**
  * @title SmartEscrow contract
@@ -23,11 +44,11 @@ contract SmartEscrow is Ownable2Step {
     address public beneficiaryOwner;
     address public beneficiary;
     uint256 public released;
-    uint64 public immutable start;
-    uint64 public immutable end;
-    uint64 public immutable vestingPeriod;
-    uint64 private immutable _initialTokens;
-    uint64 private immutable  _vestingEventTokens;
+    uint256 public immutable start;
+    uint256 public immutable end;
+    uint256 public immutable vestingPeriod;
+    uint256 public immutable initialTokens;
+    uint256 public immutable  vestingEventTokens;
     bool public contractTerminated;
 
     /**
@@ -45,11 +66,11 @@ contract SmartEscrow is Ownable2Step {
         address beneficiaryOwnerAddress,
         address beneficiaryAddress,
         address escrowOwner,
-        uint64 startTimestamp,
-        uint64 endTimestamp,
-        uint64 vestingPeriodSeconds,
-        uint64 numInitialTokens,
-        uint64 numVestingEventTokens
+        uint256 startTimestamp,
+        uint256 endTimestamp,
+        uint256 vestingPeriodSeconds,
+        uint256 numInitialTokens,
+        uint256 numVestingEventTokens
     ) {
         if (beneficiaryOwnerAddress == address(0) || beneficiaryAddress == address(0)) {
             revert AddressIsZeroAddress();
@@ -63,8 +84,8 @@ contract SmartEscrow is Ownable2Step {
         start = startTimestamp;
         end = endTimestamp;
         vestingPeriod = vestingPeriodSeconds;
-        _initialTokens = numInitialTokens;
-        _vestingEventTokens = numVestingEventTokens;
+        initialTokens = numInitialTokens;
+        vestingEventTokens = numVestingEventTokens;
 
         _transferOwnership(escrowOwner);
     }
@@ -140,26 +161,26 @@ contract SmartEscrow is Ownable2Step {
      * @dev Getter for the amount of releasable OP.
      */
     function releasable() public view returns (uint256) {
-        return vestedAmount(uint64(block.timestamp)) - released;
+        return vestedAmount(block.timestamp) - released;
     }
 
     /**
      * @dev Calculates the amount of OP that has already vested.
      */
-    function vestedAmount(uint64 timestamp) public view returns (uint256) {
+    function vestedAmount(uint256 timestamp) public view returns (uint256) {
         return _vestingSchedule(OP_TOKEN.balanceOf(address(this)) + released, timestamp);
     }
 
     /**
      * @dev Returns the amount vested as a function of time.
      */
-    function _vestingSchedule(uint256 totalAllocation, uint64 timestamp) internal view returns (uint256) {
+    function _vestingSchedule(uint256 totalAllocation, uint256 timestamp) internal view returns (uint256) {
         if (timestamp < start) {
             return 0;
         } else if (timestamp > end) {
             return totalAllocation;
         } else {
-            return _initialTokens + ((timestamp - start) / vestingPeriod) * _vestingEventTokens;
+            return initialTokens + ((timestamp - start) / vestingPeriod) * vestingEventTokens;
         }
     }
 }
