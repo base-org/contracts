@@ -4,8 +4,6 @@ pragma solidity 0.8.15;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 
 /// @dev The error is thrown when an address is not set.
 error AddressIsZeroAddress();
@@ -32,6 +30,8 @@ error ContractIsNotTerminated();
  * @title SmartEscrow contract
  * @dev Contract to handle payment of OP tokens over a period of vesting with
  * the ability to terminate the contract.
+ * This contract is inspired by OpenZeppelin's VestingWallet contract, but had sufficiently
+ * different requirements to where inheriting did not make sense.
  */
 contract SmartEscrow is Ownable2Step {
     event OPTransfered(uint256 amount, address indexed recipient);
@@ -72,7 +72,7 @@ contract SmartEscrow is Ownable2Step {
         uint256 numInitialTokens,
         uint256 numVestingEventTokens
     ) {
-        if (beneficiaryOwnerAddress == address(0) || beneficiaryAddress == address(0)) {
+        if (beneficiaryOwnerAddress == address(0) || beneficiaryAddress == address(0) || escrowOwner == address(0)) {
             revert AddressIsZeroAddress();
         }
         if (startTimestamp == 0) revert StartTimeIsZero();
@@ -112,7 +112,7 @@ contract SmartEscrow is Ownable2Step {
         if (beneficiaryOwner != newBeneficiaryOwner) {
             address oldBeneficiaryOwner = beneficiaryOwner;
             beneficiaryOwner = newBeneficiaryOwner;
-            emit BeneficiaryUpdated(oldBeneficiaryOwner, newBeneficiaryOwner);
+            emit BeneficiaryOwnerUpdated(oldBeneficiaryOwner, newBeneficiaryOwner);
         }
     }
 
@@ -139,9 +139,11 @@ contract SmartEscrow is Ownable2Step {
     function release() public {
         if (contractTerminated == true) revert ContractIsTerminated();
         uint256 amount = releasable();
-        released += amount;
-        emit OPTransfered(amount, beneficiary);
-        SafeERC20.safeTransfer(OP_TOKEN, beneficiary, amount);
+        if (amount > 0) {
+            released += amount;
+            emit OPTransfered(amount, beneficiary);
+            SafeERC20.safeTransfer(OP_TOKEN, beneficiary, amount);
+        }
     }
 
     /**
@@ -153,8 +155,10 @@ contract SmartEscrow is Ownable2Step {
         if (contractTerminated == false) revert ContractIsNotTerminated();
         if (returnAddress == address(0)) revert AddressIsZeroAddress();
         uint256 amount = OP_TOKEN.balanceOf(address(this));
-        emit OPTransfered(amount, returnAddress);
-        SafeERC20.safeTransfer(OP_TOKEN, returnAddress, amount);
+        if (amount > 0) {
+            emit OPTransfered(amount, returnAddress);
+            SafeERC20.safeTransfer(OP_TOKEN, returnAddress, amount);
+        }
     }
 
     /**
