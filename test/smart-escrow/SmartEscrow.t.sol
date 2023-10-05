@@ -329,4 +329,27 @@ contract SmartEscrowTest is CommonTest {
         assertEq(OP_TOKEN.balanceOf(beneficiary), totalTokensToRelease);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), 0);
     }
+
+    function testFuzz_release(uint256 timestamp) public {
+        vm.warp(timestamp);
+        uint256 releasable = smartEscrow.releasable();
+        smartEscrow.release();
+
+        // assert releasable tokens were sent to beneficiary
+        assertEq(OP_TOKEN.balanceOf(beneficiary), releasable);
+
+        // assert amount released is amount we expected to released
+        assertEq(smartEscrow.released(), releasable);
+
+        // assert total tokens released is correct
+        assertEq(smartEscrow.released() + OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
+
+        // assert that the token vesting is happening in increments
+        assertEq(releasable % uint256(50), 0);
+
+        // assert all tokens are released after the end period
+        if (timestamp > end) {
+            assertEq(smartEscrow.released(), totalTokensToRelease);
+        }
+    }
 }
