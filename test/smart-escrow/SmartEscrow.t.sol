@@ -6,7 +6,7 @@ import { MockERC20 } from "test/MockERC20.t.sol";
 import "src/smart-escrow/SmartEscrow.sol";
 
 contract SmartEscrowTest is CommonTest {
-    event OPTransfered(uint256 amount, address indexed recipient);
+    event Transfer(address indexed from, address indexed to, uint256 value);
     event BeneficiaryOwnerUpdated(address indexed oldOwner, address indexed newOwner);
     event BeneficiaryUpdated(address indexed oldBeneficiary, address indexed newBeneficiary);
     event ContractTerminated();
@@ -157,8 +157,8 @@ contract SmartEscrowTest is CommonTest {
     function test_terminate_afterRelease_succeeds() public {
         vm.warp(1001); // after 2 vesting periods
         uint256 expectedReleased = initialTokens + 2 * vestingEventTokens;
-        vm.expectEmit(true, true, true, true, address(smartEscrow));
-        emit OPTransfered(expectedReleased, beneficiary);
+        vm.expectEmit(true, true, true, true, address(OP_TOKEN));
+        emit Transfer(address(smartEscrow), beneficiary, expectedReleased);
         smartEscrow.release();
 
         vm.expectEmit(true, true, true, true, address(smartEscrow));
@@ -248,9 +248,9 @@ contract SmartEscrowTest is CommonTest {
         vm.prank(address(smartEscrow));
         OP_TOKEN.mint(totalTokensToRelease);
 
-        // We expect the OPTransfered event to be emitted
-        vm.expectEmit(true, true, true, true, address(smartEscrow));
-        emit OPTransfered(totalTokensToRelease, bob);
+        // We expect a Transfer event to be emitted
+        vm.expectEmit(true, true, true, true, address(OP_TOKEN));
+        emit Transfer(address(smartEscrow), bob, totalTokensToRelease);
 
         vm.prank(escrowOwner);
         smartEscrow.withdrawUnvestedTokens(bob);
@@ -300,8 +300,8 @@ contract SmartEscrowTest is CommonTest {
     }
 
     function test_release_afterScheduleStart_succeeds() public {
-        vm.expectEmit(true, true, true, true, address(smartEscrow));
-        emit OPTransfered(initialTokens, beneficiary);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(address(smartEscrow), beneficiary, initialTokens);
         vm.warp(500); // after start, before first vesting period
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), initialTokens);
@@ -311,8 +311,8 @@ contract SmartEscrowTest is CommonTest {
     function test_release_afterVestingPeriods_succeeds() public {
         vm.warp(1001); // after 2 vesting periods
         uint256 expectedTokens = initialTokens + 2 * vestingEventTokens;
-        vm.expectEmit(true, true, true, true, address(smartEscrow));
-        emit OPTransfered(expectedTokens, beneficiary);
+        vm.expectEmit(true, true, true, true, address(OP_TOKEN));
+        emit Transfer(address(smartEscrow), beneficiary, expectedTokens);
 
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), expectedTokens);
@@ -322,8 +322,8 @@ contract SmartEscrowTest is CommonTest {
     function test_release_afterScheduleEnd_succeeds() public {
         vm.warp(2002); // after end time
 
-        vm.expectEmit(true, true, true, true, address(smartEscrow));
-        emit OPTransfered(totalTokensToRelease, beneficiary);
+        vm.expectEmit(true, true, true, true, address(OP_TOKEN));
+        emit Transfer(address(smartEscrow), beneficiary, totalTokensToRelease);
 
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), totalTokensToRelease);
