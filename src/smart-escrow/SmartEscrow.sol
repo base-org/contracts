@@ -5,37 +5,42 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @notice The error is thrown when an address is not set.
-error AddressIsZeroAddress();
-
-/// @notice The error is thrown when the start timestamp is zero.
-error StartTimeIsZero();
-
-/// @notice The error is thrown when the start timestamp is greater than the end timestamp.
-/// @param startTimestamp The provided start time of the contract
-/// @param endTimestamp The provided end time of the contract
-error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
-
-/// @notice The error is thrown when the vesting period is zero.
-error VestingPeriodIsZeroSeconds();
-
-/// @notice The error is thrown when the caller of the method is not the expected owner.
-/// @param caller The address of the caller
-/// @param owner The address of the owner
-error CallerIsNotOwner(address caller, address owner);
-
-/// @notice The error is thrown when the contract is terminated, when it should not be.
-error ContractIsTerminated();
-
-/// @notice The error is thrown when the contract is not terminated, when it should be.
-error ContractIsNotTerminated();
-
 /// @title SmartEscrow contract
 /// @notice Contract to handle payment of OP tokens over a period of vesting with
 ///         the ability to terminate the contract.
-/// @notice This contract is inspired by OpenZeppelin's VestingWallet contract, but had 
+/// @notice This contract is inspired by OpenZeppelin's VestingWallet contract, but had
 ///         sufficiently different requirements to where inheriting did not make sense.
 contract SmartEscrow is Ownable2Step {
+    /// @notice OP token contract.
+    IERC20 public constant OP_TOKEN = IERC20(0x4200000000000000000000000000000000000042);
+
+    /// @notice Timestamp of the start of vesting period (or the cliff, if there is one).
+    uint256 public immutable start;
+
+    /// @notice Timestamp of the end of the vesting period.
+    uint256 public immutable end;
+
+    /// @notice Period of time between each vesting event in seconds.
+    uint256 public immutable vestingPeriod;
+
+    /// @notice Number of OP tokens which vest at start time.
+    uint256 public immutable initialTokens;
+
+    /// @notice Number of OP tokens which vest upon each vesting event.
+    uint256 public immutable  vestingEventTokens;
+
+    /// @notice Address which can update the beneficiary address.
+    address public beneficiaryOwner;
+
+    /// @notice Address which receives tokens that have vested.
+    address public beneficiary;
+
+    /// @notice Number of OP tokens which have be released to the beneficiary.
+    uint256 public released;
+
+    /// @notice Flag for whether the contract is terminated or active.
+    bool public contractTerminated;
+
     /// @notice Event emitted when the beneficiary owner is updated.
     /// @param oldOwner The address of the old beneficiary owner
     /// @param newOwner The address of the new beneficiary owner
@@ -49,17 +54,30 @@ contract SmartEscrow is Ownable2Step {
     /// @notice Event emitted when the contract is terminated.
     event ContractTerminated();
 
-    IERC20 public constant OP_TOKEN = IERC20(0x4200000000000000000000000000000000000042);
+    /// @notice The error is thrown when an address is not set.
+    error AddressIsZeroAddress();
 
-    address public beneficiaryOwner;
-    address public beneficiary;
-    uint256 public released;
-    uint256 public immutable start;
-    uint256 public immutable end;
-    uint256 public immutable vestingPeriod;
-    uint256 public immutable initialTokens;
-    uint256 public immutable  vestingEventTokens;
-    bool public contractTerminated;
+    /// @notice The error is thrown when the start timestamp is zero.
+    error StartTimeIsZero();
+
+    /// @notice The error is thrown when the start timestamp is greater than the end timestamp.
+    /// @param startTimestamp The provided start time of the contract
+    /// @param endTimestamp The provided end time of the contract
+    error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
+
+    /// @notice The error is thrown when the vesting period is zero.
+    error VestingPeriodIsZeroSeconds();
+
+    /// @notice The error is thrown when the caller of the method is not the expected owner.
+    /// @param caller The address of the caller
+    /// @param owner The address of the owner
+    error CallerIsNotOwner(address caller, address owner);
+
+    /// @notice The error is thrown when the contract is terminated, when it should not be.
+    error ContractIsTerminated();
+
+    /// @notice The error is thrown when the contract is not terminated, when it should be.
+    error ContractIsNotTerminated();
 
     /// @notice Set initial parameters.
     /// @param _beneficiaryOwner Address which can update the beneficiary address.
