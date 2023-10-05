@@ -131,8 +131,8 @@ contract SmartEscrow is Ownable2Step {
     /// @notice Emits a {BeneficiaryOwnerUpdated} event.
     function updateBeneficiaryOwner(address _newBeneficiaryOwner) external onlyOwner {
         if (_newBeneficiaryOwner == address(0)) revert AddressIsZeroAddress();
-        if (beneficiaryOwner != _newBeneficiaryOwner) {
-            address oldBeneficiaryOwner = beneficiaryOwner;
+        address oldBeneficiaryOwner = beneficiaryOwner;
+        if (oldBeneficiaryOwner != _newBeneficiaryOwner) {
             beneficiaryOwner = _newBeneficiaryOwner;
             emit BeneficiaryOwnerUpdated(oldBeneficiaryOwner, _newBeneficiaryOwner);
         }
@@ -144,8 +144,8 @@ contract SmartEscrow is Ownable2Step {
     function updateBeneficiary(address _newBeneficiary) external {
         if (msg.sender != beneficiaryOwner) revert CallerIsNotOwner(msg.sender, beneficiaryOwner);
         if (_newBeneficiary == address(0)) revert AddressIsZeroAddress();
-        if (beneficiary != _newBeneficiary) {
-            address oldBeneficiary = beneficiary;
+        address oldBeneficiary = beneficiary;
+        if (oldBeneficiary != _newBeneficiary) {
             beneficiary = _newBeneficiary;
             emit BeneficiaryUpdated(oldBeneficiary, _newBeneficiary);
         }
