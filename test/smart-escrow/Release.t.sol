@@ -5,7 +5,7 @@ import "./BaseSmartEscrow.t.sol";
 
 contract ReleaseSmartEscrow is BaseSmartEscrowTest {
     function test_release_beforeScheduleStart_succeeds() public {
-        vm.warp(0); // before start
+        vm.warp(start - 1); // before start
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), 0);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
@@ -14,14 +14,16 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
     function test_release_afterScheduleStart_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(smartEscrow), beneficiary, initialTokens);
-        vm.warp(500); // after start, before first vesting period
+        vm.expectEmit(true, true, true, true, address(smartEscrow));
+        emit TokensReleased(beneficiary, initialTokens);
+        vm.warp(start + 1); // after start, before first vesting period
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), initialTokens);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease - initialTokens);
     }
 
     function test_release_afterVestingPeriods_succeeds() public {
-        vm.warp(1001); // after 2 vesting periods
+        vm.warp(start + 2 * vestingPeriod); // after 2 vesting periods
         uint256 expectedTokens = initialTokens + 2 * vestingEventTokens;
         vm.expectEmit(true, true, true, true, address(OP_TOKEN));
         emit Transfer(address(smartEscrow), beneficiary, expectedTokens);
@@ -32,13 +34,25 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
     }
 
     function test_release_afterScheduleEnd_succeeds() public {
-        vm.warp(2002); // after end time
+        vm.warp(end + 1); // after end time
 
         vm.expectEmit(true, true, true, true, address(OP_TOKEN));
         emit Transfer(address(smartEscrow), beneficiary, totalTokensToRelease);
 
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), totalTokensToRelease);
+        assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), 0);
+    }
+
+    function test_release_notEnoughTokens_reverts() public {
+        vm.prank(address(smartEscrow));
+        OP_TOKEN.burn(totalTokensToRelease);
+
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+
+        vm.warp(start + 1);
+        smartEscrow.release();
+        assertEq(OP_TOKEN.balanceOf(beneficiary), 0);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), 0);
     }
 
@@ -56,8 +70,10 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
         // assert total tokens released is correct
         assertEq(smartEscrow.released() + OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
 
-        // assert that the token vesting is happening in increments
-        assertEq(releasable % uint256(50), 0);
+        if (timestamp > start && timestamp < end) {
+            // assert that the token vesting is happening in increments
+            assertEq((releasable - initialTokens) % uint256(vestingEventTokens), 0);
+        }
 
         // assert all tokens are released after the end period
         if (timestamp > end) {

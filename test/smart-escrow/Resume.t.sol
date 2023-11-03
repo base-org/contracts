@@ -16,7 +16,7 @@ contract ResumeSmartEscrow is BaseSmartEscrowTest {
         vm.prank(escrowOwner);
         smartEscrow.resume();
 
-        vm.warp(5000); // All tokens are releasable at this time
+        vm.warp(end + 1); // All tokens are releasable at this time
         smartEscrow.release();
 
         // All tokens should have been released
@@ -41,5 +41,12 @@ contract ResumeSmartEscrow is BaseSmartEscrowTest {
         
         // All tokens should remain in the contract
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
+    }
+
+    function test_resume_calledWhenContractNotTerminated_fails() public {
+        bytes4 selector = bytes4(keccak256("ContractIsNotTerminated()"));
+        vm.expectRevert(abi.encodeWithSelector(selector));
+        vm.prank(escrowOwner);
+        smartEscrow.resume();
     }
 }

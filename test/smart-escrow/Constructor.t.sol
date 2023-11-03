@@ -89,8 +89,9 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
     }
 
     function test_constructor_startTimeZero_fails() public {
-        bytes4 zeroStartSelector = bytes4(keccak256("StartTimeIsZero()"));
-        vm.expectRevert(abi.encodeWithSelector(zeroStartSelector));
+        vm.warp(100);
+        bytes4 pastStartTimeSelector = bytes4(keccak256("StartTimeCannotBeInPast(uint256,uint256)"));
+        vm.expectRevert(abi.encodeWithSelector(pastStartTimeSelector, 0, 100));
         new SmartEscrow(
             benefactor,
             beneficiary,
@@ -107,15 +108,14 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
 
     function test_constructor_startAfterEnd_fails() public {
         bytes4 startAfterEndSelector = bytes4(keccak256("StartTimeAfterEndTime(uint256,uint256)"));
-        uint256 lateStart = 2002;
-        vm.expectRevert(abi.encodeWithSelector(startAfterEndSelector, lateStart, end));
+        vm.expectRevert(abi.encodeWithSelector(startAfterEndSelector, end, end));
         new SmartEscrow(
             benefactor,
             beneficiary,
             benefactorOwner,
             beneficiaryOwner,
             escrowOwner,
-            lateStart,
+            end,
             end,
             vestingPeriod,
             initialTokens,
@@ -135,6 +135,58 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             start,
             end,
             0,
+            initialTokens,
+            vestingEventTokens
+        );
+    }
+
+    function test_constructor_vestingEventTokensZero_fails() public {
+        bytes4 vestingEventTokensZeroSelector = bytes4(keccak256("VestingEventTokensIsZero()"));
+        vm.expectRevert(abi.encodeWithSelector(vestingEventTokensZeroSelector));
+        new SmartEscrow(
+            benefactor,
+            beneficiary,
+            benefactorOwner,
+            beneficiaryOwner,
+            escrowOwner,
+            start,
+            end,
+            vestingPeriod,
+            initialTokens,
+            0
+        );
+    }
+
+    function test_constructor_vestingPeriodExceedsContractDuration_fails() public {
+        bytes4 vestingPeriodExceedsContractDurationSelector = bytes4(keccak256("VestingPeriodExceedsContractDuration(uint256)"));
+        vm.expectRevert(abi.encodeWithSelector(vestingPeriodExceedsContractDurationSelector, end));
+        new SmartEscrow(
+            benefactor,
+            beneficiary,
+            benefactorOwner,
+            beneficiaryOwner,
+            escrowOwner,
+            start,
+            end,
+            end,
+            initialTokens,
+            vestingEventTokens
+        );
+    }
+
+    function test_constructor_unevenVestingPeriod_fails() public {
+        bytes4 unevenVestingPeriodSelector = bytes4(keccak256("UnevenVestingPeriod(uint256,uint256,uint256)"));
+        uint256 unevenVestingPeriod = 7;
+        vm.expectRevert(abi.encodeWithSelector(unevenVestingPeriodSelector, unevenVestingPeriod, start, end));
+        new SmartEscrow(
+            benefactor,
+            beneficiary,
+            benefactorOwner,
+            beneficiaryOwner,
+            escrowOwner,
+            start,
+            end,
+            unevenVestingPeriod,
             initialTokens,
             vestingEventTokens
         );

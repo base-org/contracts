@@ -3,7 +3,6 @@ pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts/access/AccessControlDefaultAdminRules.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SmartEscrow contract
 /// @notice Contract to handle payment of OP tokens over a period of vesting with
@@ -44,20 +43,30 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Address which receives tokens that have vested.
     address public beneficiary;
 
-    /// @notice Number of OP tokens which have be released to the beneficiary.
+    /// @notice Number of OP tokens which have been released to the beneficiary.
     uint256 public released;
 
     /// @notice Flag for whether the contract is terminated or active.
     bool public contractTerminated;
 
+    /// @notice Event emitted when tokens are withdrawn from the contract.
+    /// @param benefactor The address which received the withdrawn tokens.
+    /// @param amount The amount of tokens withdrawn.
+    event TokensWithdrawn(address indexed benefactor, uint256 amount);
+
+    /// @notice Event emitted when tokens are released to the beneficiary.
+    /// @param beneficiary The address which received the released tokens.
+    /// @param amount The amount of tokens released.
+    event TokensReleased(address indexed beneficiary, uint256 amount);
+
     /// @notice Event emitted when the benefactor is updated.
-    /// @param oldBenefactor The address of the old benefactor
-    /// @param newBenefactor The address of the new benefactor
+    /// @param oldBenefactor The address of the old benefactor.
+    /// @param newBenefactor The address of the new benefactor.
     event BenefactorUpdated(address indexed oldBenefactor, address indexed newBenefactor);
 
     /// @notice Event emitted when the beneficiary is updated.
-    /// @param oldBeneficiary The address of the old beneficiary
-    /// @param newBeneficiary The address of the new beneficiary
+    /// @param oldBeneficiary The address of the old beneficiary.
+    /// @param newBeneficiary The address of the new beneficiary.
     event BeneficiaryUpdated(address indexed oldBeneficiary, address indexed newBeneficiary);
 
     /// @notice Event emitted when the contract is terminated.
@@ -69,16 +78,31 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice The error is thrown when an address is not set.
     error AddressIsZeroAddress();
 
-    /// @notice The error is thrown when the start timestamp is zero.
-    error StartTimeIsZero();
+    /// @notice The error is thrown when the start timestamp is in the past.
+    /// @param startTimestamp The provided start time of the contract.
+    /// @param currentTime The current time.
+    error StartTimeCannotBeInPast(uint256 startTimestamp, uint256 currentTime);
 
     /// @notice The error is thrown when the start timestamp is greater than the end timestamp.
-    /// @param startTimestamp The provided start time of the contract
-    /// @param endTimestamp The provided end time of the contract
+    /// @param startTimestamp The provided start time of the contract.
+    /// @param endTimestamp The provided end time of the contract.
     error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
 
     /// @notice The error is thrown when the vesting period is zero.
     error VestingPeriodIsZeroSeconds();
+
+    /// @notice The error is thrown when the number of vesting event tokens is zero.
+    error VestingEventTokensIsZero();
+
+    /// @notice The error is thrown when vesting period is longer than the contract duration.
+    /// @param vestingPeriodSeconds The provided vesting period in seconds.
+    error VestingPeriodExceedsContractDuration(uint256 vestingPeriodSeconds);
+
+    /// @notice The error is thrown when the vesting period does not evenly divide the contract duration.
+    /// @param vestingPeriodSeconds The provided vesting period in seconds.
+    /// @param startTimestamp The provided start time of the contract.
+    /// @param endTimestamp The provided end time of the contract.
+    error UnevenVestingPeriod(uint256 vestingPeriodSeconds, uint256 startTimestamp, uint256 endTimestamp);
 
     /// @notice The error is thrown when the contract is terminated, when it should not be.
     error ContractIsTerminated();
@@ -113,9 +137,16 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         _beneficiaryOwner == address(0) || _benefactorOwner == address(0)) {
             revert AddressIsZeroAddress();
         }
-        if (_start == 0) revert StartTimeIsZero();
-        if (_start > _end) revert StartTimeAfterEndTime(_start, _end);
+        if (_start < block.timestamp) revert StartTimeCannotBeInPast(_start, block.timestamp);
+        if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
         if (_vestingPeriodSeconds == 0) revert VestingPeriodIsZeroSeconds();
+        if (_vestingEventTokens == 0) revert VestingEventTokensIsZero();
+        if ((_end - _start) < _vestingPeriodSeconds) {
+            revert VestingPeriodExceedsContractDuration(_vestingPeriodSeconds);
+        }
+        if ((_end - _start) % _vestingPeriodSeconds != 0) {
+            revert UnevenVestingPeriod(_vestingPeriodSeconds, _start, _end);
+        }
 
         benefactor = _benefactor;
         beneficiary = _beneficiary;
@@ -132,21 +163,26 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     }
 
     /// @notice Terminates the contract if called by address with TERMINATOR_ROLE.
+    /// @notice Releases any vested token to the beneficiary before terminating.
     /// @notice Emits a {ContractTerminated} event.
     function terminate() external onlyRole(TERMINATOR_ROLE) {
+        if (contractTerminated) revert ContractIsTerminated();
+        release();
         contractTerminated = true;
         emit ContractTerminated();
     }
 
-    /// @notice Resumes the contract if called by address with DEFAULT_ADMIN_ROLE.
+    /// @notice Resumes the contract on the original vesting schedule.
+    /// @notice Must be called by address with DEFAULT_ADMIN_ROLE role.
     /// @notice Emits a {ContractResumed} event.
     function resume() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!contractTerminated) revert ContractIsNotTerminated();
         contractTerminated = false;
         emit ContractResumed();
     }
 
     /// @notice Allow benefactor owner to update benefactor address.
-    /// @param _newBenefactor New benefactor address
+    /// @param _newBenefactor New benefactor address.
     /// @notice Emits a {BenefactorUpdated} event.
     function updateBenefactor(address _newBenefactor) external onlyRole(BENEFACTOR_OWNER_ROLE) {
         if (_newBenefactor == address(0)) revert AddressIsZeroAddress();
@@ -158,7 +194,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     }
 
     /// @notice Allow beneficiary owner to update beneficiary address.
-    /// @param _newBeneficiary New beneficiary address
+    /// @param _newBeneficiary New beneficiary address.
     /// @notice Emits a {BeneficiaryUpdated} event.
     function updateBeneficiary(address _newBeneficiary) external onlyRole(BENEFICIARY_OWNER_ROLE) {
         if (_newBeneficiary == address(0)) revert AddressIsZeroAddress();
@@ -169,24 +205,26 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         }
     }
 
+    /// @notice Allow withdrawal of remaining tokens to benefactor address if contract is terminated.
+    /// @notice Emits a {Transfer} event and a {TokensWithdrawn} event.
+    function withdrawUnvestedTokens() public onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!contractTerminated) revert ContractIsNotTerminated();
+        uint256 amount = OP_TOKEN.balanceOf(address(this));
+        if (amount > 0) {
+            OP_TOKEN.transfer(benefactor, amount);
+            emit TokensWithdrawn(benefactor, amount);
+        }
+    }
+
     /// @notice Release OP tokens that have already vested.
-    /// @notice Emits a {Transfer} event.
+    /// @notice Emits a {Transfer} event and a {TokensReleased} event.
     function release() public {
         if (contractTerminated) revert ContractIsTerminated();
         uint256 amount = releasable();
         if (amount > 0) {
             released += amount;
-            SafeERC20.safeTransfer(OP_TOKEN, beneficiary, amount);
-        }
-    }
-
-    /// @notice Allow withdrawal of remaining tokens to benefactor address if contract is terminated
-    /// @notice Emits a {Transfer} event.
-    function withdrawUnvestedTokens() public onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (!contractTerminated) revert ContractIsNotTerminated();
-        uint256 amount = OP_TOKEN.balanceOf(address(this));
-        if (amount > 0) {
-            SafeERC20.safeTransfer(OP_TOKEN, benefactor, amount);
+            OP_TOKEN.transfer(beneficiary, amount);
+            emit TokensReleased(beneficiary, amount);
         }
     }
 
@@ -198,17 +236,16 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Calculates the amount of OP that has already vested.
     /// @param _timestamp The timestamp to at which to get the vested amount
     function vestedAmount(uint256 _timestamp) public view returns (uint256) {
-        return _vestingSchedule(OP_TOKEN.balanceOf(address(this)) + released, _timestamp);
+        return _vestingSchedule(_timestamp);
     }
 
     /// @notice Returns the amount vested as a function of time.
-    /// @param _totalAllocation The total amount of OP allocated to the contract
     /// @param _timestamp The timestamp to at which to get the vested amount
-    function _vestingSchedule(uint256 _totalAllocation, uint256 _timestamp) internal view returns (uint256) {
+    function _vestingSchedule(uint256 _timestamp) internal view returns (uint256) {
         if (_timestamp < start) {
             return 0;
         } else if (_timestamp > end) {
-            return _totalAllocation;
+            return OP_TOKEN.balanceOf(address(this)) + released;
         } else {
             return initialTokens + ((_timestamp - start) / vestingPeriod) * vestingEventTokens;
         }

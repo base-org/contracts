@@ -11,6 +11,8 @@ contract BaseSmartEscrowTest is CommonTest {
     event BeneficiaryUpdated(address indexed oldBeneficiary, address indexed newBeneficiary);
     event ContractTerminated();
     event ContractResumed();
+    event TokensWithdrawn(address indexed benefactor, uint256 amount);
+    event TokensReleased(address indexed beneficiary, uint256 amount);
 
     MockERC20 public constant OP_TOKEN = MockERC20(0x4200000000000000000000000000000000000042);
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
@@ -24,12 +26,12 @@ contract BaseSmartEscrowTest is CommonTest {
     address public beneficiary = address(3);
     address public beneficiaryOwner = address(4);
     address public escrowOwner = address(5);
-    uint256 public start = 1;
-    uint256 public end = 2001;
-    uint256 public vestingPeriod = 500;
-    uint256 public initialTokens = 100;
-    uint256 public vestingEventTokens = 50;
-    uint256 public totalTokensToRelease = 300;
+    uint256 public start = 1720106400;
+    uint256 public end = 1870005000;
+    uint256 public vestingPeriod = 7889400;
+    uint256 public initialTokens = 17895697;
+    uint256 public vestingEventTokens = 4473924;
+    uint256 public totalTokensToRelease = 107374177;
 
     function setUp() public override {
         smartEscrow = new SmartEscrow(

@@ -9,9 +9,11 @@ contract WithdrawUnvestedTokensSmartEscrow is BaseSmartEscrowTest {
         vm.prank(benefactorOwner);
         smartEscrow.terminate();
 
-        // We expect a Transfer event to be emitted
+        // We expect a Transfer and TokensWithdrawn events to be emitted
         vm.expectEmit(true, true, true, true, address(OP_TOKEN));
         emit Transfer(address(smartEscrow), benefactor, totalTokensToRelease);
+        vm.expectEmit(true, true, true, true, address(smartEscrow));
+        emit TokensWithdrawn(benefactor, totalTokensToRelease);
 
         // Tokens withdrawn to benefactor
         vm.prank(escrowOwner);
