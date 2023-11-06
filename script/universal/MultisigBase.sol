@@ -58,6 +58,25 @@ abstract contract MultisigBase is Simulator {
         console.log("^^^^^^^^");
     }
 
+    function _checkSignatures(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures) internal view {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
+        bytes32 hash = _getTransactionHash(_safe, data);
+
+        uint256 signatureCount = uint256(_signatures.length / 0x41);
+        uint256 threshold = safe.getThreshold();
+        require(signatureCount >= threshold, "not enough signatures");
+
+        // safe requires signatures to be sorted ascending by public key
+        _signatures = sortSignatures(_signatures, hash);
+
+        safe.checkSignatures({
+            dataHash: hash,
+            data: data,
+            signatures: _signatures
+        });
+    }
+
     function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures) internal returns (bool) {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
