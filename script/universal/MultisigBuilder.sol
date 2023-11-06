@@ -59,6 +59,16 @@ abstract contract MultisigBuilder is MultisigBase {
     /**
      * Step 2
      * ======
+     * Verify the signatures generated from step 1 are valid.
+     * This allow transactions to be pre-signed and stored safely before execution.
+     */
+    function verify(bytes memory _signatures) public view {
+        _checkSignatures(_ownerSafe(), _buildCalls(), _signatures);
+    }
+
+    /**
+     * Step 3
+     * ======
      * Execute the transaction. This method should be called by the final member of the multisig
      * that will execute the transaction. Signatures from step 1 are required.
      *
