@@ -66,6 +66,11 @@ abstract contract MultisigBuilder is MultisigBase {
         _checkSignatures(_ownerSafe(), _buildCalls(), _signatures);
     }
 
+    function nonce() public view {
+        IGnosisSafe safe = IGnosisSafe(payable(_ownerSafe()));
+        console.log("Nonce:", safe.nonce());
+    }
+
     /**
      * Step 3
      * ======
