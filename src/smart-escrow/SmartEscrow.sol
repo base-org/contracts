@@ -35,7 +35,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     uint256 public immutable initialTokens;
 
     /// @notice Number of OP tokens which vest upon each vesting event.
-    uint256 public immutable  vestingEventTokens;
+    uint256 public immutable vestingEventTokens;
 
     /// @notice Address which receives funds back in case of contract termination.
     address public benefactor;
@@ -207,7 +207,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
 
     /// @notice Allow withdrawal of remaining tokens to benefactor address if contract is terminated.
     /// @notice Emits a {Transfer} event and a {TokensWithdrawn} event.
-    function withdrawUnvestedTokens() public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdrawUnvestedTokens() external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (!contractTerminated) revert ContractIsNotTerminated();
         uint256 amount = OP_TOKEN.balanceOf(address(this));
         if (amount > 0) {
