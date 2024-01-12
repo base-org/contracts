@@ -27,12 +27,12 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * @notice Creates the calldata
      */
-    function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
+    function _buildCalls() internal virtual pure returns (IMulticall3.Call3[] memory);
 
     /**
      * @notice Returns the nested safe address to execute the final transaction from
      */
-    function _ownerSafe() internal virtual view returns (address);
+    function _ownerSafe() internal virtual pure returns (address);
 
     /**
      * -----------------------------------------------------------
