@@ -28,10 +28,8 @@ abstract contract MultisigBase is Simulator {
         uint256 nonce = safe.nonce();
         console.log("Safe current nonce:", nonce);
 
-        if (bytes(vm.envOr("SAFE_NONCE", "")).length > 0) {
-            nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", nonce);
-        }
+        nonce = vm.envOr("SAFE_NONCE", nonce); // allow overriding the nonce for testing
+        console.log("Creating transaction with nonce:", nonce);
 
         return safe.encodeTransactionData({
             to: address(multicall),
