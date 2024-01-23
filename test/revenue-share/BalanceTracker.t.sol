@@ -4,7 +4,7 @@ pragma solidity 0.8.15;
 import { CommonTest } from "test/CommonTest.t.sol";
 import { ReenterProcessFees } from "test/revenue-share/mocks/ReenterProcessFees.sol";
 
-import { Proxy } from "@eth-optimism-bedrock/contracts/universal/Proxy.sol";
+import { Proxy } from "@eth-optimism-bedrock/src/universal/Proxy.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
 import { BalanceTracker } from "src/revenue-share/BalanceTracker.sol";

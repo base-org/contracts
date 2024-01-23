@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { FeeVault } from "@eth-optimism-bedrock/contracts/universal/FeeVault.sol";
+import { FeeVault } from "@eth-optimism-bedrock/src/universal/FeeVault.sol";
 
 contract FeeVaultRevert {
     address internal immutable _RECIPIENT;
