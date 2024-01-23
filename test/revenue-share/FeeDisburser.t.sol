@@ -10,10 +10,9 @@ import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { L2StandardBridge } from "@eth-optimism-bedrock/src/L2/L2StandardBridge.sol";
-import { SequencerFeeVault } from "@eth-optimism-bedrock/src/L2/SequencerFeeVault.sol";
+import { SequencerFeeVault, FeeVault } from "@eth-optimism-bedrock/src/L2/SequencerFeeVault.sol";
 import { BaseFeeVault } from "@eth-optimism-bedrock/src/L2/BaseFeeVault.sol";
 import { L1FeeVault } from "@eth-optimism-bedrock/src/L2/L1FeeVault.sol";
-import { FeeVault } from "@eth-optimism-bedrock/src/universal/FeeVault.sol";
 import { Predeploys } from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
 
 import { FeeDisburser } from "src/revenue-share/FeeDisburser.sol";
