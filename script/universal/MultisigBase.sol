@@ -28,7 +28,7 @@ abstract contract MultisigBase is Simulator {
         uint256 nonce = safe.nonce();
         console.log("Safe current nonce:", nonce);
 
-        if (bytes(vm.envOr("SAFE_NONCE", "")).length > 0) {
+        if (bytes(vm.envOr(string("SAFE_NONCE"), string(""))).length > 0) {
             nonce = vm.envUint("SAFE_NONCE");
             console.log("Creating transaction with nonce:", nonce);
         }

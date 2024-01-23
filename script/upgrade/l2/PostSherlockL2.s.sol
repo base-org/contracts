@@ -4,9 +4,9 @@ pragma solidity 0.8.15;
 import { console } from "forge-std/console.sol";
 import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
-import { Predeploys } from "@eth-optimism-bedrock/contracts/libraries/Predeploys.sol";
-import { ProxyAdmin } from "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
-import { OptimismPortal } from "@eth-optimism-bedrock/contracts/L1/OptimismPortal.sol";
+import { Predeploys } from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
+import { ProxyAdmin } from "@eth-optimism-bedrock/src/universal/ProxyAdmin.sol";
+import { OptimismPortal } from "@eth-optimism-bedrock/src/L1/OptimismPortal.sol";
 import "script/deploy/Utils.sol";
 import { SafeBuilder } from "@eth-optimism-bedrock/scripts/universal/SafeBuilder.sol";
 

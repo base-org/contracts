@@ -4,9 +4,10 @@ pragma solidity ^0.8.15;
 import {console} from "forge-std/console.sol";
 import { Test, StdUtils } from "forge-std/Test.sol";
 
-import { L2OutputOracle } from "@eth-optimism-bedrock/contracts/L1/L2OutputOracle.sol";
-import { ProxyAdmin } from "@eth-optimism-bedrock/contracts/universal/ProxyAdmin.sol";
-import { Proxy } from "@eth-optimism-bedrock/contracts/universal/Proxy.sol";
+import { L2OutputOracle } from "@eth-optimism-bedrock/src/L1/L2OutputOracle.sol";
+import { ProxyAdmin } from "@eth-optimism-bedrock/src/universal/ProxyAdmin.sol";
+import { Proxy } from "@eth-optimism-bedrock/src/universal/Proxy.sol";
+
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { Challenger1of2 } from "src/Challenger1of2.sol";
 
@@ -54,10 +55,6 @@ contract Challenger1of2Test is Test {
         l2OutputOracle = new L2OutputOracle({
             _submissionInterval: NONZERO_INTEGER,
             _l2BlockTime: NONZERO_INTEGER,
-            _startingBlockNumber: NONZERO_INTEGER,
-            _startingTimestamp: ZERO,
-            _proposer: proposer,
-            _challenger: address(challenger),
             _finalizationPeriodSeconds: NONZERO_INTEGER
         });
         
@@ -69,7 +66,7 @@ contract Challenger1of2Test is Test {
             abi.encodeCall(
                 L2OutputOracle.initialize,
                 (
-                    NONZERO_INTEGER, ZERO
+                    NONZERO_INTEGER, ZERO, proposer, address(challenger)
                 )
             )
         );

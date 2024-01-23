@@ -2,10 +2,10 @@
 pragma solidity 0.8.15;
 
 import { CommonTest } from "test/CommonTest.t.sol";
-import { Predeploys } from "@eth-optimism-bedrock/contracts/libraries/Predeploys.sol";
-import { Proxy } from "@eth-optimism-bedrock/contracts/universal/Proxy.sol";
-import { FeeVault as FeeVault_Final } from "@eth-optimism-bedrock/contracts/universal/FeeVault.sol";
-import { L1FeeVault as L1FeeVault_Final } from "@eth-optimism-bedrock/contracts/L2/L1FeeVault.sol";
+import { Predeploys } from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
+import { Proxy } from "@eth-optimism-bedrock/src/universal/Proxy.sol";
+import { FeeVault as FeeVault_Final } from "@eth-optimism-bedrock/src/universal/FeeVault.sol";
+import { L1FeeVault as L1FeeVault_Final } from "@eth-optimism-bedrock/src/L2/L1FeeVault.sol";
 import { FeeVault as FeeVault_Fix } from "src/fee-vault-fixes/FeeVault.sol";
 
 contract L1FeeVaultTest is CommonTest {
