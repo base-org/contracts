@@ -52,12 +52,8 @@ contract Challenger1of2Test is Test {
         );
 
         // Initialize L2OutputOracle implementation.
-        l2OutputOracle = new L2OutputOracle({
-            _submissionInterval: NONZERO_INTEGER,
-            _l2BlockTime: NONZERO_INTEGER,
-            _finalizationPeriodSeconds: NONZERO_INTEGER
-        });
-        
+        l2OutputOracle = new L2OutputOracle();
+
         vm.prank(deployer);
         // Upgrade and initialize L2OutputOracle.
         proxyAdmin.upgradeAndCall(
@@ -66,7 +62,13 @@ contract Challenger1of2Test is Test {
             abi.encodeCall(
                 L2OutputOracle.initialize,
                 (
-                    NONZERO_INTEGER, ZERO, proposer, address(challenger)
+                    NONZERO_INTEGER, // _submissionInterval
+                    NONZERO_INTEGER, // _l2BlockTime
+                    ZERO, // _startingBlockNumber
+                    NONZERO_INTEGER, // _startingTimestamp
+                    proposer, // _proposer
+                    address(challenger), // _challenger
+                    NONZERO_INTEGER // _finalizationPeriodSeconds
                 )
             )
         );
