@@ -28,6 +28,15 @@ abstract contract Simulator is CommonBase {
         });
     }
 
+    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public pure returns (SimulationStateOverride memory) {
+        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](2);
+        // set the threshold (slot 4) to 1
+        overrides[0] = SimulationStorageOverride({key: bytes32(uint256(0x4)), value: bytes32(uint256(0x1))});
+        // set the nonce (slot 5) to _nonce
+        overrides[1] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+        return SimulationStateOverride({contractAddress: _safe, overrides: overrides});
+    }
+
     function overrideSafeThresholdAndOwner(address _safe, address _owner) public pure returns (SimulationStateOverride memory) {
         SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](4);
 
