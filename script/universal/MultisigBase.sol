@@ -28,10 +28,12 @@ abstract contract MultisigBase is Simulator {
         uint256 nonce = safe.nonce();
         console.log("Safe current nonce:", nonce);
 
-        if (bytes(vm.envOr(string("SAFE_NONCE"), string(""))).length > 0) {
+        // workaround to check if the SAFE_NONCE env var is present
+        try vm.envUint("SAFE_NONCE") {
             nonce = vm.envUint("SAFE_NONCE");
             console.log("Creating transaction with nonce:", nonce);
         }
+        catch {}
 
         return safe.encodeTransactionData({
             to: address(multicall),
@@ -72,7 +74,11 @@ abstract contract MultisigBase is Simulator {
         // safe requires signatures to be sorted ascending by public key
         _signatures = sortSignatures(_signatures, hash);
 
-        safe.checkSignatures({dataHash: hash, data: data, signatures: _signatures});
+        safe.checkSignatures({
+            dataHash: hash,
+            data: data,
+            signatures: _signatures
+        });
     }
 
     function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
@@ -107,7 +113,7 @@ abstract contract MultisigBase is Simulator {
                     payable(address(0)),
                     _signatures
                 )
-                )
+            )
         });
 
         return safe.execTransaction({

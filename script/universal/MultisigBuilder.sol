@@ -74,6 +74,32 @@ abstract contract MultisigBuilder is MultisigBase {
     /**
      * Step 3
      * ======
+     * Simulate the transaction. This method should be called by the final member of the multisig
+     * that will execute the transaction. Signatures from step 1 are required.
+     */
+    function simulateSigned(bytes memory _signatures) public returns (bool) {
+        address _safe = _ownerSafe();
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+
+        uint256 _nonce = safe.nonce();
+        console.log("Safe current nonce:", _nonce);
+
+        // workaround to check if the SAFE_NONCE env var is present
+        try vm.envUint("SAFE_NONCE") {
+            _nonce = vm.envUint("SAFE_NONCE");
+            console.log("Creating transaction with nonce:", _nonce);
+        }
+        catch {}
+
+        vm.store(_safe, bytes32(uint256(5)), bytes32(uint256(_nonce)));
+        bool success = _executeTransaction(_safe, _buildCalls(), _signatures);
+        if (success) _postCheck();
+        return success;
+    }
+
+    /**
+     * Step 4
+     * ======
      * Execute the transaction. This method should be called by the final member of the multisig
      * that will execute the transaction. Signatures from step 1 are required.
      *
@@ -91,12 +117,23 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
+        uint256 _nonce = safe.nonce();
+        console.log("Safe current nonce:", _nonce);
+
+        // workaround to check if the SAFE_NONCE env var is present
+        try vm.envUint("SAFE_NONCE") {
+            _nonce = vm.envUint("SAFE_NONCE");
+            console.log("Creating transaction with nonce:", _nonce);
+        }
+        catch {}
+
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](1);
         // The state change simulation sets the multisig threshold to 1 in the
         // simulation to enable an approver to see what the final state change
         // will look like upon transaction execution. The multisig threshold
         // will not actually change in the transaction execution.
-        overrides[0] = overrideSafeThreshold(_safe);
+        overrides[0] = overrideSafeThresholdAndNonce(_safe, _nonce);
+
         logSimulationLink({
             _to: _safe,
             _data: abi.encodeCall(
