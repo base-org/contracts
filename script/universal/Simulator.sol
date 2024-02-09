@@ -28,12 +28,28 @@ abstract contract Simulator is CommonBase {
         });
     }
 
-    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public pure returns (SimulationStateOverride memory) {
-        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](2);
-        // set the threshold (slot 4) to 1
-        overrides[0] = SimulationStorageOverride({key: bytes32(uint256(0x4)), value: bytes32(uint256(0x1))});
-        // set the nonce (slot 5) to _nonce
-        overrides[1] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (SimulationStateOverride memory) {
+        // create a storage override to set the threshold (slot 4) to 1
+        SimulationStorageOverride memory thresholdOverride =
+            SimulationStorageOverride({key: bytes32(uint256(0x4)), value: bytes32(uint256(0x1))}); 
+
+        // get the nonce and check if we need to override it
+        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
+        uint256 nonce = abi.decode(nonceBytes, (uint256));
+
+        // initialize the overrides array, then allocate space and populate it depending on whether we need to override the nonce
+        SimulationStorageOverride[] memory overrides;
+        if (nonce == _nonce) {
+            // no need to override the nonce
+            overrides = new SimulationStorageOverride[](1);
+            overrides[0] = thresholdOverride;
+        } else {
+            // add a second override for the nonce
+            overrides = new SimulationStorageOverride[](2);
+            overrides[0] = thresholdOverride;
+            overrides[1] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+        }
+        
         return SimulationStateOverride({contractAddress: _safe, overrides: overrides});
     }
 
