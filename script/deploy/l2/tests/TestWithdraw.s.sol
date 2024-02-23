@@ -4,9 +4,9 @@ pragma solidity 0.8.15;
 import "forge-std/console.sol";
 import "forge-std/Script.sol";
 
-import {Predeploys} from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
-import {L2StandardBridge} from "@eth-optimism-bedrock/src/L2/L2StandardBridge.sol";
-import {L2ERC721Bridge} from "@eth-optimism-bedrock/src/L2/L2ERC721Bridge.sol";
+import {Predeploys} from "@eth-optimism-bedrock/contracts/libraries/Predeploys.sol";
+import {L2StandardBridge} from "@eth-optimism-bedrock/contracts/L2/L2StandardBridge.sol";
+import {L2ERC721Bridge} from "@eth-optimism-bedrock/contracts/L2/L2ERC721Bridge.sol";
 
 // Withdraws tokens from L2 to L1 to test Base Mainnet's bridging functionality
 contract TestWithdraw is Script {
