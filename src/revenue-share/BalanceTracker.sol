@@ -6,7 +6,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuardUpgradeable } 
     from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-import { SafeCall } from "@eth-optimism-bedrock/contracts/libraries/SafeCall.sol";
+import { SafeCall } from "@eth-optimism-bedrock/src/libraries/SafeCall.sol";
 
 /**
  * @title BalanceTracker
