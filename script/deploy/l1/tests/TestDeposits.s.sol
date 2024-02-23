@@ -7,8 +7,8 @@ import "forge-std/Script.sol";
 import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import {ERC721PresetMinterPauserAutoId} from "@openzeppelin/contracts/token/ERC721/presets/ERC721PresetMinterPauserAutoId.sol";
 
-import {L1StandardBridge} from "@eth-optimism-bedrock/contracts/L1/L1StandardBridge.sol";
-import {L1ERC721Bridge} from "@eth-optimism-bedrock/contracts/L1/L1ERC721Bridge.sol";
+import {L1StandardBridge} from "@eth-optimism-bedrock/src/L1/L1StandardBridge.sol";
+import {L1ERC721Bridge} from "@eth-optimism-bedrock/src/L1/L1ERC721Bridge.sol";
 
 // Deposits funds to Base Mainnet to test its functionality
 contract DeployTestContracts is Script {
