@@ -84,6 +84,46 @@ abstract contract Simulator is CommonBase {
         });
     }
 
+    function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
+        SimulationStorageOverride[] memory overrides;
+
+        // get the nonce and check if we need to override it
+        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
+        uint256 nonce = abi.decode(nonceBytes, (uint256));
+
+        // set the threshold (slot 4) to 1
+        overrides[0] = SimulationStorageOverride({
+            key: bytes32(uint256(0x4)),
+            value: bytes32(uint256(0x1))
+        });
+
+        // set the ownerCount (slot 3) to 1
+        overrides[1] = SimulationStorageOverride({
+            key: bytes32(uint256(0x3)),
+            value: bytes32(uint256(0x1))
+        });
+
+        // override the owner mapping (slot 2), which requires two key/value pairs: { 0x1: _owner, _owner: 0x1 }
+        overrides[2] = SimulationStorageOverride({
+            key: bytes32(0xe90b7bceb6e7df5418fb78d8ee546e97c83a08bbccc01a0644d599ccd2a7c2e0), // keccak256(1 || 2)
+            value: bytes32(uint256(uint160(_owner)))
+        });
+        overrides[3] = SimulationStorageOverride({
+            key: keccak256(abi.encode(_owner, uint256(2))),
+            value: bytes32(uint256(0x1))
+        });
+        
+        if (nonce != _nonce) {
+            // need to override the nonce
+            overrides[5] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+        }
+
+        return SimulationStateOverride({
+            contractAddress: _safe,
+            overrides: overrides
+        });
+    }
+
     function logSimulationLink(address _to, bytes memory _data, address _from) public view {
         logSimulationLink(_to, _data, _from, new SimulationStateOverride[](0));
     }

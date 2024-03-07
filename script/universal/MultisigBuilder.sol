@@ -113,7 +113,7 @@ abstract contract MultisigBuilder is MultisigBase {
         return success;
     }
 
-    function _simulateForSigner(address _safe, IMulticall3.Call3[] memory _calls) internal view {
+    function _simulateForSigner(address _safe, IMulticall3.Call3[] memory _calls) internal virtual view {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
