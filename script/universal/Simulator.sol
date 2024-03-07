@@ -36,6 +36,9 @@ abstract contract Simulator is CommonBase {
         return overrideSafeThresholdOwnerAndNonce(_safe, _owner, UINT256_MAX);
     }
 
+    // Always updates the threshhold to 1
+    // Will update the `_owner` if `_owner != address(0)`
+    // Will update the `_nonce` if `_nonce !=UINT256_MAX` 
     function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
         // get the nonce and check if we need to override it
         (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
@@ -71,8 +74,8 @@ abstract contract Simulator is CommonBase {
             overrides[2] = ownerMappingOverride;
             overrides[3] = isOwnerOverride;
         }
-        else if (_owner == address(0)) { // Don't update owner 
-            overrides = new SimulationStorageOverride[](5);
+        else if (_owner == address(0)) { // Don't update owner
+            overrides = new SimulationStorageOverride[](3);
             overrides[0] = thresholdOverride;
             overrides[1] = isOwnerOverride;
             overrides[2] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
