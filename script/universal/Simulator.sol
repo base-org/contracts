@@ -29,54 +29,68 @@ abstract contract Simulator is CommonBase {
     }
 
     function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        // create a storage override to set the threshold (slot 4) to 1
-        SimulationStorageOverride memory thresholdOverride =
-            SimulationStorageOverride({key: bytes32(uint256(0x4)), value: bytes32(uint256(0x1))}); 
-
-        // get the nonce and check if we need to override it
-        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
-        uint256 nonce = abi.decode(nonceBytes, (uint256));
-
-        // initialize the overrides array, then allocate space and populate it depending on whether we need to override the nonce
-        SimulationStorageOverride[] memory overrides;
-        if (nonce == _nonce) {
-            // no need to override the nonce
-            overrides = new SimulationStorageOverride[](1);
-            overrides[0] = thresholdOverride;
-        } else {
-            // add a second override for the nonce
-            overrides = new SimulationStorageOverride[](2);
-            overrides[0] = thresholdOverride;
-            overrides[1] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
-        }
-        
-        return SimulationStateOverride({contractAddress: _safe, overrides: overrides});
+        return overrideSafeThresholdOwnerAndNonce(_safe, address(0), _nonce);
     }
 
-    function overrideSafeThresholdAndOwner(address _safe, address _owner) public pure returns (SimulationStateOverride memory) {
-        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](4);
+    function overrideSafeThresholdAndOwner(address _safe, address _owner) public view returns (SimulationStateOverride memory) {
+        return overrideSafeThresholdOwnerAndNonce(_safe, _owner, UINT256_MAX);
+    }
+
+    // Always updates the threshhold to 1
+    // Will update the `_owner` if `_owner != address(0)`
+    // Will update the `_nonce` if `_nonce !=UINT256_MAX` 
+    function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
 
         // set the threshold (slot 4) to 1
-        overrides[0] = SimulationStorageOverride({
+        SimulationStorageOverride memory thresholdOverride = SimulationStorageOverride({
             key: bytes32(uint256(0x4)),
             value: bytes32(uint256(0x1))
         });
 
         // set the ownerCount (slot 3) to 1
-        overrides[1] = SimulationStorageOverride({
+        SimulationStorageOverride memory ownerCountOverride = SimulationStorageOverride({
             key: bytes32(uint256(0x3)),
             value: bytes32(uint256(0x1))
         });
 
         // override the owner mapping (slot 2), which requires two key/value pairs: { 0x1: _owner, _owner: 0x1 }
-        overrides[2] = SimulationStorageOverride({
+        SimulationStorageOverride memory ownerMappingOverride = SimulationStorageOverride({
             key: bytes32(0xe90b7bceb6e7df5418fb78d8ee546e97c83a08bbccc01a0644d599ccd2a7c2e0), // keccak256(1 || 2)
             value: bytes32(uint256(uint160(_owner)))
         });
-        overrides[3] = SimulationStorageOverride({
+        SimulationStorageOverride memory isOwnerOverride = SimulationStorageOverride({
             key: keccak256(abi.encode(_owner, uint256(2))),
             value: bytes32(uint256(0x1))
         });
+
+        // get the current nonce 
+        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
+        uint256 nonce = abi.decode(nonceBytes, (uint256));
+        // set the nonce (slot 5) to the desired value
+        SimulationStorageOverride memory nonceOverride = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+
+        SimulationStorageOverride[] memory overrides;
+        if (nonce == _nonce || nonce == UINT256_MAX) { // Don't update nonce
+            overrides = new SimulationStorageOverride[](4);
+            overrides[0] = thresholdOverride;
+            overrides[1] = ownerCountOverride;
+            overrides[2] = ownerMappingOverride;
+            overrides[3] = isOwnerOverride;
+        }
+        else if (_owner == address(0)) { // Don't update owner
+            overrides = new SimulationStorageOverride[](3);
+            overrides[0] = thresholdOverride;
+            overrides[1] = isOwnerOverride;
+            overrides[2] = nonceOverride;
+        }
+        else {
+            overrides = new SimulationStorageOverride[](5);
+            overrides[0] = thresholdOverride;
+            overrides[1] = ownerCountOverride;
+            overrides[2] = ownerMappingOverride;
+            overrides[3] = isOwnerOverride;
+            overrides[4] = nonceOverride;
+        }
 
         return SimulationStateOverride({
             contractAddress: _safe,
