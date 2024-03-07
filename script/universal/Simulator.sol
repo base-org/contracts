@@ -115,7 +115,7 @@ abstract contract Simulator is CommonBase {
         
         if (nonce != _nonce) {
             // need to override the nonce
-            overrides[5] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+            overrides[4] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
         }
 
         return SimulationStateOverride({
