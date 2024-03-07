@@ -40,9 +40,6 @@ abstract contract Simulator is CommonBase {
     // Will update the `_owner` if `_owner != address(0)`
     // Will update the `_nonce` if `_nonce !=UINT256_MAX` 
     function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        // get the nonce and check if we need to override it
-        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
-        uint256 nonce = abi.decode(nonceBytes, (uint256));
 
         // set the threshold (slot 4) to 1
         SimulationStorageOverride memory thresholdOverride = SimulationStorageOverride({
@@ -66,6 +63,12 @@ abstract contract Simulator is CommonBase {
             value: bytes32(uint256(0x1))
         });
 
+        // get the current nonce 
+        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
+        uint256 nonce = abi.decode(nonceBytes, (uint256));
+        // set the nonce (slot 5) to the desired value
+        SimulationStorageOverride memory nonceOverride = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+
         SimulationStorageOverride[] memory overrides;
         if (nonce == _nonce || nonce == UINT256_MAX) { // Don't update nonce
             overrides = new SimulationStorageOverride[](4);
@@ -78,7 +81,7 @@ abstract contract Simulator is CommonBase {
             overrides = new SimulationStorageOverride[](3);
             overrides[0] = thresholdOverride;
             overrides[1] = isOwnerOverride;
-            overrides[2] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+            overrides[2] = nonceOverride;
         }
         else {
             overrides = new SimulationStorageOverride[](5);
@@ -86,7 +89,7 @@ abstract contract Simulator is CommonBase {
             overrides[1] = ownerCountOverride;
             overrides[2] = ownerMappingOverride;
             overrides[3] = isOwnerOverride;
-            overrides[4] = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+            overrides[4] = nonceOverride;
         }
 
         return SimulationStateOverride({
