@@ -80,17 +80,7 @@ abstract contract MultisigBuilder is MultisigBase {
     function simulateSigned(bytes memory _signatures) public returns (bool) {
         address _safe = _ownerSafe();
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
-
-        uint256 _nonce = safe.nonce();
-        console.log("Safe current nonce:", _nonce);
-
-        // workaround to check if the SAFE_NONCE env var is present
-        try vm.envUint("SAFE_NONCE") {
-            _nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", _nonce);
-        }
-        catch {}
-
+        uint256 _nonce = _getNonce(safe);
         vm.store(_safe, bytes32(uint256(5)), bytes32(uint256(_nonce)));
         bool success = _executeTransaction(_safe, _buildCalls(), _signatures);
         if (success) _postCheck();
@@ -150,15 +140,7 @@ abstract contract MultisigBuilder is MultisigBase {
     // default logic is vestigial for backwards compatibility. 
     function _addOverrides(address _safe) internal virtual view returns (SimulationStateOverride memory) {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 _nonce = safe.nonce();
-        console.log("Safe current nonce:", _nonce);
-
-        // workaround to check if the SAFE_NONCE env var is present
-        try vm.envUint("SAFE_NONCE") {
-            _nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", _nonce);
-        }
-        catch {}
+        uint256 _nonce = _getNonce(safe);
         return overrideSafeThresholdAndNonce(_safe, _nonce);
     }
 }
