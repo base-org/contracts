@@ -128,11 +128,7 @@ abstract contract MultisigBuilder is MultisigBase {
         catch {}
 
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](1);
-        // The state change simulation sets the multisig threshold to 1 in the
-        // simulation to enable an approver to see what the final state change
-        // will look like upon transaction execution. The multisig threshold
-        // will not actually change in the transaction execution.
-        overrides[0] = overrideSafeThresholdAndNonce(_safe, _nonce);
+        overrides[0] = _addOverrides(_safe, address(0), _nonce);
 
         logSimulationLink({
             _to: _safe,
@@ -154,5 +150,15 @@ abstract contract MultisigBuilder is MultisigBase {
             _from: msg.sender,
             _overrides: overrides
         });
+    }
+
+    // The state change simulation can set the threshold, owner address and/or nonce.
+    // This allows a non-signing owner to simulate the transaction
+    // State changes reflected in the simulation as a result of these overrides
+    // will not be reflected in the prod execution. 
+    // This particular implementation can be overwritten by an inheriting script. The 
+    // default logic is vestigial for backwards compatibility. 
+    function _addOverrides(address _safe, address, uint256 _nonce) internal virtual view returns (SimulationStateOverride memory) {
+        return overrideSafeThresholdAndNonce(_safe, _nonce);
     }
 }
