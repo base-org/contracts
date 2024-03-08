@@ -19,21 +19,25 @@ abstract contract MultisigBase is Simulator {
         return keccak256(_encodeTransactionData(_safe, _data));
     }
 
+    // Virtual method which can be overwritten
+    // Default logic here is vestigial for backwards compatibility
+    function _getNonce(IGnosisSafe safe) internal view virtual returns (uint256 nonce) {
+        nonce = safe.nonce();
+        console.log("Safe current nonce:", nonce);
+        try vm.envUint("SAFE_NONCE") {
+            nonce = vm.envUint("SAFE_NONCE");
+            console.log("Creating transaction with nonce:", nonce);
+        }
+        catch {}
+    }
+
     function _encodeTransactionData(address _safe, bytes memory _data) internal view returns (bytes memory) {
         // Ensure that the required contracts exist
         require(address(multicall).code.length > 0, "multicall3 not deployed");
         require(_safe.code.length > 0, "no code at safe address");
 
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 nonce = safe.nonce();
-        console.log("Safe current nonce:", nonce);
-
-        // workaround to check if the SAFE_NONCE env var is present
-        try vm.envUint("SAFE_NONCE") {
-            nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", nonce);
-        }
-        catch {}
+        uint256 nonce = _getNonce(safe);
 
         return safe.encodeTransactionData({
             to: address(multicall),
