@@ -117,18 +117,8 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        uint256 _nonce = safe.nonce();
-        console.log("Safe current nonce:", _nonce);
-
-        // workaround to check if the SAFE_NONCE env var is present
-        try vm.envUint("SAFE_NONCE") {
-            _nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", _nonce);
-        }
-        catch {}
-
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](1);
-        overrides[0] = _addOverrides(_safe, address(0), _nonce);
+        overrides[0] = _addOverrides(_safe);
 
         logSimulationLink({
             _to: _safe,
@@ -158,7 +148,17 @@ abstract contract MultisigBuilder is MultisigBase {
     // will not be reflected in the prod execution. 
     // This particular implementation can be overwritten by an inheriting script. The 
     // default logic is vestigial for backwards compatibility. 
-    function _addOverrides(address _safe, address, uint256 _nonce) internal virtual view returns (SimulationStateOverride memory) {
+    function _addOverrides(address _safe) internal virtual view returns (SimulationStateOverride memory) {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+        uint256 _nonce = safe.nonce();
+        console.log("Safe current nonce:", _nonce);
+
+        // workaround to check if the SAFE_NONCE env var is present
+        try vm.envUint("SAFE_NONCE") {
+            _nonce = vm.envUint("SAFE_NONCE");
+            console.log("Creating transaction with nonce:", _nonce);
+        }
+        catch {}
         return overrideSafeThresholdAndNonce(_safe, _nonce);
     }
 }
