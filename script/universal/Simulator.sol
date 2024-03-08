@@ -16,84 +16,75 @@ abstract contract Simulator is CommonBase {
     }
 
     function overrideSafeThreshold(address _safe) public pure returns (SimulationStateOverride memory) {
-        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](1);
-        // set the threshold (slot 4) to 1
-        overrides[0] = SimulationStorageOverride({
-            key: bytes32(uint256(0x4)),
-            value: bytes32(uint256(0x1))
-        });
-        return SimulationStateOverride({
+        return addThresholdOverride(SimulationStateOverride({
             contractAddress: _safe,
-            overrides: overrides
-        });
+            overrides: new SimulationStorageOverride[](0)
+        }));
     }
 
     function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        return overrideSafeThresholdOwnerAndNonce(_safe, address(0), _nonce);
+        SimulationStateOverride memory state = overrideSafeThreshold(_safe);
+        state = addNonceOverride(_safe, state, _nonce);
+        return state;
     }
 
-    function overrideSafeThresholdAndOwner(address _safe, address _owner) public view returns (SimulationStateOverride memory) {
-        return overrideSafeThresholdOwnerAndNonce(_safe, _owner, UINT256_MAX);
+    function overrideSafeThresholdAndOwner(address _safe, address _owner) public pure returns (SimulationStateOverride memory) {
+        SimulationStateOverride memory state = overrideSafeThreshold(_safe);
+        state = addOwnerOverride(state, _owner);
+        return state;
     }
 
-    // Always updates the threshhold to 1
-    // Will update the `_owner` if `_owner != address(0)`
-    // Will update the `_nonce` if `_nonce !=UINT256_MAX` 
     function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
+        SimulationStateOverride memory state = overrideSafeThresholdAndOwner(_safe, _owner);
+        state = addNonceOverride(_safe, state, _nonce);
+        return state;
+    }
 
+    function addThresholdOverride(SimulationStateOverride memory _state) internal pure returns (SimulationStateOverride memory) {
         // set the threshold (slot 4) to 1
-        SimulationStorageOverride memory thresholdOverride = SimulationStorageOverride({
+        return addOverride(_state, SimulationStorageOverride({
             key: bytes32(uint256(0x4)),
             value: bytes32(uint256(0x1))
-        });
+        }));
+    }
 
+    function addOwnerOverride(SimulationStateOverride memory _state, address _owner) internal pure returns (SimulationStateOverride memory) {
         // set the ownerCount (slot 3) to 1
-        SimulationStorageOverride memory ownerCountOverride = SimulationStorageOverride({
+        _state = addOverride(_state, SimulationStorageOverride({
             key: bytes32(uint256(0x3)),
             value: bytes32(uint256(0x1))
-        });
-
+        }));
         // override the owner mapping (slot 2), which requires two key/value pairs: { 0x1: _owner, _owner: 0x1 }
-        SimulationStorageOverride memory ownerMappingOverride = SimulationStorageOverride({
+        _state = addOverride(_state, SimulationStorageOverride({
             key: bytes32(0xe90b7bceb6e7df5418fb78d8ee546e97c83a08bbccc01a0644d599ccd2a7c2e0), // keccak256(1 || 2)
             value: bytes32(uint256(uint160(_owner)))
-        });
-        SimulationStorageOverride memory isOwnerOverride = SimulationStorageOverride({
+        }));
+        return addOverride(_state, SimulationStorageOverride({
             key: keccak256(abi.encode(_owner, uint256(2))),
             value: bytes32(uint256(0x1))
-        });
+        }));
+    }
 
-        // get the current nonce 
+    function addNonceOverride(address _safe, SimulationStateOverride memory _state, uint256 _nonce) internal view returns (SimulationStateOverride memory) {
+        // get the nonce and check if we need to override it
         (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
         uint256 nonce = abi.decode(nonceBytes, (uint256));
+        if (nonce == _nonce) return _state;
         // set the nonce (slot 5) to the desired value
-        SimulationStorageOverride memory nonceOverride = SimulationStorageOverride({key: bytes32(uint256(0x5)), value: bytes32(_nonce)});
+        return addOverride(_state, SimulationStorageOverride({
+            key: bytes32(uint256(0x5)),
+            value: bytes32(_nonce)
+        }));
+    }
 
-        SimulationStorageOverride[] memory overrides;
-        if (nonce == _nonce || nonce == UINT256_MAX) { // Don't update nonce
-            overrides = new SimulationStorageOverride[](4);
-            overrides[0] = thresholdOverride;
-            overrides[1] = ownerCountOverride;
-            overrides[2] = ownerMappingOverride;
-            overrides[3] = isOwnerOverride;
+    function addOverride(SimulationStateOverride memory _state, SimulationStorageOverride memory _override) internal pure returns (SimulationStateOverride memory) {
+        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](_state.overrides.length + 1);
+        for (uint256 i; i < _state.overrides.length; i++) {
+            overrides[i] = _state.overrides[i];
         }
-        else if (_owner == address(0)) { // Don't update owner
-            overrides = new SimulationStorageOverride[](3);
-            overrides[0] = thresholdOverride;
-            overrides[1] = isOwnerOverride;
-            overrides[2] = nonceOverride;
-        }
-        else {
-            overrides = new SimulationStorageOverride[](5);
-            overrides[0] = thresholdOverride;
-            overrides[1] = ownerCountOverride;
-            overrides[2] = ownerMappingOverride;
-            overrides[3] = isOwnerOverride;
-            overrides[4] = nonceOverride;
-        }
-
+        overrides[_state.overrides.length] = _override;
         return SimulationStateOverride({
-            contractAddress: _safe,
+            contractAddress: _state.contractAddress,
             overrides: overrides
         });
     }
