@@ -40,18 +40,6 @@ abstract contract Simulator is CommonBase {
         return state;
     }
 
-    function addOverride(SimulationStateOverride memory _state, SimulationStorageOverride memory _override) internal pure returns (SimulationStateOverride memory) {
-        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](_state.overrides.length + 1);
-        for (uint256 i; i < _state.overrides.length; i++) {
-            overrides[i] = _state.overrides[i];
-        }
-        overrides[_state.overrides.length] = _override;
-        return SimulationStateOverride({
-            contractAddress: _state.contractAddress,
-            overrides: overrides
-        });
-    }
-
     function addThresholdOverride(SimulationStateOverride memory _state) internal pure returns (SimulationStateOverride memory) {
         // set the threshold (slot 4) to 1
         return addOverride(_state, SimulationStorageOverride({
@@ -87,6 +75,18 @@ abstract contract Simulator is CommonBase {
             key: bytes32(uint256(0x5)),
             value: bytes32(_nonce)
         }));
+    }
+
+    function addOverride(SimulationStateOverride memory _state, SimulationStorageOverride memory _override) internal pure returns (SimulationStateOverride memory) {
+        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](_state.overrides.length + 1);
+        for (uint256 i; i < _state.overrides.length; i++) {
+            overrides[i] = _state.overrides[i];
+        }
+        overrides[_state.overrides.length] = _override;
+        return SimulationStateOverride({
+            contractAddress: _state.contractAddress,
+            overrides: overrides
+        });
     }
 
     function logSimulationLink(address _to, bytes memory _data, address _from) public view {
