@@ -24,11 +24,11 @@ abstract contract Simulator is CommonBase {
 
     function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (SimulationStateOverride memory) {
         SimulationStateOverride memory state = overrideSafeThreshold(_safe);
-        state = addNonceOverride(state, _nonce);
+        state = addNonceOverride(_safe, state, _nonce);
         return state;
     }
 
-    function overrideSafeThresholdAndOwner(address _safe, address _owner) public view returns (SimulationStateOverride memory) {
+    function overrideSafeThresholdAndOwner(address _safe, address _owner) public pure returns (SimulationStateOverride memory) {
         SimulationStateOverride memory state = overrideSafeThreshold(_safe);
         state = addOwnerOverride(state, _owner);
         return state;
@@ -36,7 +36,7 @@ abstract contract Simulator is CommonBase {
 
     function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
         SimulationStateOverride memory state = overrideSafeThresholdAndOwner(_safe, _owner);
-        state = addNonceOverride(state, _nonce);
+        state = addNonceOverride(_safe, state, _nonce);
         return state;
     }
 
@@ -77,7 +77,11 @@ abstract contract Simulator is CommonBase {
         }));
     }
 
-    function addNonceOverride(SimulationStateOverride memory _state, uint256 _nonce) internal pure returns (SimulationStateOverride memory) {
+    function addNonceOverride(address _safe, SimulationStateOverride memory _state, uint256 _nonce) internal view returns (SimulationStateOverride memory) {
+        // get the nonce and check if we need to override it
+        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
+        uint256 nonce = abi.decode(nonceBytes, (uint256));
+        if (nonce == _nonce) return _state;
         // set the nonce (slot 5) to the desired value
         return addOverride(_state, SimulationStorageOverride({
             key: bytes32(uint256(0x5)),
