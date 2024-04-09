@@ -21,6 +21,12 @@ abstract contract MultisigBase is Simulator {
 
     // Virtual method which can be overwritten
     // Default logic here is vestigial for backwards compatibility
+    // IMPORTANT: this method is used in the sign, simulate, AND execution contexts
+    // If you override it, ensure that the behavior is correct for all contexts
+    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before safe.nonce is executed),
+    // you should explicitly set the nonce value with an env var.
+    // Overwriting this method with safe.nonce + 1 will cause issues upon execution because the transaction
+    // hash will differ from the one signed.
     function _getNonce(IGnosisSafe safe) internal view virtual returns (uint256 nonce) {
         nonce = safe.nonce();
         console.log("Safe current nonce:", nonce);
