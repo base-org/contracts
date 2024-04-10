@@ -138,9 +138,9 @@ abstract contract MultisigBuilder is MultisigBase {
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
         SimulationPayload memory simPayload = SimulationPayload({
-            from: msg.sender,
             to: _safe,
             data: txData,
+            from: msg.sender,
             stateOverrides: overrides
         });
         Vm.AccountAccess[] memory accesses = simulateFromSimPayload(simPayload);

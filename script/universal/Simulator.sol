@@ -43,7 +43,7 @@ abstract contract Simulator is CommonBase {
         vm.prank(simPayload.from);
         (bool ok, bytes memory returnData) = address(simPayload.to).call(simPayload.data);
         Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
-        require(ok, string.concat("Simulator::simulateFromSimPayload failed", vm.toString(returnData)));
+        require(ok, string.concat("Simulator::simulateFromSimPayload failed: ", vm.toString(returnData)));
         require(accesses.length > 0, "Simulator::simulateFromSimPayload: No state changes");
         return accesses;
     }
