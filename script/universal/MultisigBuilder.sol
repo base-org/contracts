@@ -99,6 +99,8 @@ abstract contract MultisigBuilder is MultisigBase {
     function run(bytes memory _signatures) public {
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_ownerSafe(), _buildCalls(), _signatures);
+        vm.stopBroadcast();
+
         _postCheck(accesses, simPayload);
     }
 

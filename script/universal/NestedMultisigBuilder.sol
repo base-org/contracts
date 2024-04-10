@@ -69,8 +69,6 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * after collecting a threshold of signatures for each multisig (see step 1).
      */
     function approve(address _signerSafe, bytes memory _signatures) public {
-        vm.startBroadcast();
-
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
@@ -78,7 +76,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         address[] memory approvers = _getApprovers(_signerSafe, toArray(call));
         _signatures = bytes.concat(_signatures, prevalidatedSignatures(approvers));
 
+        vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
+        vm.stopBroadcast();
+
         _postCheck(accesses, simPayload);
     }
 
@@ -89,14 +90,15 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * all of the approval transactions have been submitted onchain (see step 2).
      */
     function run() public {
-        vm.startBroadcast();
-
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         address[] memory approvers = _getApprovers(nestedSafeAddress, nestedCalls);
         bytes memory signatures = prevalidatedSignatures(approvers);
 
+        vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
+        vm.stopBroadcast();
+
         _postCheck(accesses, simPayload);
     }
 
