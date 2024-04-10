@@ -22,7 +22,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * @notice Follow up assertions to ensure that the script ran to completion
      */
-    function _postCheck() internal virtual view;
+    function _postCheck(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual;
 
     /**
      * @notice Creates the calldata
@@ -48,7 +48,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * their signature to a facilitator, who will execute the approval transaction for each
      * multisig (see step 2).
      */
-    function sign(address _signerSafe) public view returns (bool) {
+    function sign(address _signerSafe) public {
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
@@ -56,10 +56,9 @@ abstract contract NestedMultisigBuilder is MultisigBase {
 
         console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", _signerSafe);
         console.logBytes32(hash);
-        _simulateForSigner(_signerSafe, nestedSafeAddress, nestedCalls);
+        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafeAddress, nestedCalls);
+        _postCheck(accesses, simPayload);
         _printDataToSign(_signerSafe, toArray(call));
-
-        return true;
     }
 
     /**
@@ -69,7 +68,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * (non-signer), once for each of the multisigs involved in the nested multisig,
      * after collecting a threshold of signatures for each multisig (see step 1).
      */
-    function approve(address _signerSafe, bytes memory _signatures) public returns (bool) {
+    function approve(address _signerSafe, bytes memory _signatures) public {
         vm.startBroadcast();
 
         address nestedSafeAddress = _ownerSafe();
@@ -79,7 +78,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         address[] memory approvers = _getApprovers(_signerSafe, toArray(call));
         _signatures = bytes.concat(_signatures, prevalidatedSignatures(approvers));
 
-        return _executeTransaction(_signerSafe, toArray(call), _signatures);
+        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
+        _postCheck(accesses, simPayload);
     }
 
     /**
@@ -88,7 +88,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * Execute the transaction. This method should be called by a facilitator (non-signer), after
      * all of the approval transactions have been submitted onchain (see step 2).
      */
-    function run() public returns (bool) {
+    function run() public {
         vm.startBroadcast();
 
         address nestedSafeAddress = _ownerSafe();
@@ -96,9 +96,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         address[] memory approvers = _getApprovers(nestedSafeAddress, nestedCalls);
         bytes memory signatures = prevalidatedSignatures(approvers);
 
-        bool success = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
-        if (success) _postCheck();
-        return success;
+        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
+        _postCheck(accesses, simPayload);
     }
 
     function _generateApproveCall(address _safe, IMulticall3.Call3[] memory _calls) internal view returns (IMulticall3.Call3 memory) {
@@ -142,7 +141,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         return subset;
     }
 
-    function _simulateForSigner(address _signerSafe, address _safe, IMulticall3.Call3[] memory _calls) internal view {
+    function _simulateForSigner(address _signerSafe, address _safe, IMulticall3.Call3[] memory _calls)
+        internal
+        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
+    {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         IGnosisSafe signerSafe = IGnosisSafe(payable(_signerSafe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
@@ -212,12 +214,24 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // EOA cannot DELEGATECALL, multicall needs to own the signer safe.
         overrides[1] = overrideSafeThresholdAndOwner(_signerSafe, address(multicall));
 
+        bytes memory txData = abi.encodeCall(IMulticall3.aggregate3, (calls));
         console.log("---\nSimulation link:");
         logSimulationLink({
             _to: address(multicall),
-            _data: abi.encodeCall(IMulticall3.aggregate3, (calls)),
+            _data: txData,
             _from: msg.sender,
             _overrides: overrides
         });
+
+        // Forge simulation of the data logged in the link. If the simulation fails
+        // we revert to make it explicit that the simulation failed.
+        SimulationPayload memory simPayload = SimulationPayload({
+            from: msg.sender,
+            to: _safe,
+            data: txData,
+            stateOverrides: overrides
+        });
+        Vm.AccountAccess[] memory accesses = simulateFromSimPayload(simPayload);
+        return (accesses, simPayload);
     }
 }

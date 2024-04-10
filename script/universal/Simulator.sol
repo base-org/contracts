@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import { console } from "forge-std/console.sol";
 import { CommonBase } from "forge-std/Base.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 abstract contract Simulator is CommonBase {
     struct SimulationStateOverride {
@@ -13,6 +14,38 @@ abstract contract Simulator is CommonBase {
     struct SimulationStorageOverride {
         bytes32 key;
         bytes32 value;
+    }
+
+    struct SimulationPayload {
+        address from;
+        address to;
+        bytes data;
+        SimulationStateOverride[] stateOverrides;
+    }
+
+    function simulateFromSimPayload(SimulationPayload memory simPayload) internal returns (Vm.AccountAccess[] memory) {
+        require(simPayload.from != address(0), "Simulator::simulateFromSimPayload: from address cannot be zero address");
+        require(simPayload.to != address(0), "Simulator::simulateFromSimPayload: to address cannot be zero address");
+
+        // Apply state overrides.
+        SimulationStateOverride[] memory stateOverrides = simPayload.stateOverrides;
+        for (uint256 i; i < stateOverrides.length; i++) {
+            SimulationStateOverride memory stateOverride = stateOverrides[i];
+            SimulationStorageOverride[] memory storageOverrides = stateOverride.overrides;
+            for (uint256 j; j < storageOverrides.length; j++) {
+                SimulationStorageOverride memory storageOverride = storageOverrides[j];
+                vm.store(stateOverride.contractAddress, storageOverride.key, storageOverride.value);
+            }
+        }
+
+        // Execute the call in forge and return the state diff.
+        vm.startStateDiffRecording();
+        vm.prank(simPayload.from);
+        (bool ok, bytes memory returnData) = address(simPayload.to).call(simPayload.data);
+        Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
+        require(ok, string.concat("Simulator::simulateFromSimPayload failed", vm.toString(returnData)));
+        require(accesses.length > 0, "Simulator::simulateFromSimPayload: No state changes");
+        return accesses;
     }
 
     function overrideSafeThreshold(address _safe) public pure returns (SimulationStateOverride memory) {
