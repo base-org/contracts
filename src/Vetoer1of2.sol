@@ -72,7 +72,7 @@ contract Vetoer1of2 {
                         External Functions
     //////////////////////////////////////////////////////////////*/
     /**
-     * @dev Executes a call as the Challenger (must be called by
+     * @dev Executes a call as the Vetoer (must be called by
      * Optimism or counter party signer).
      * @param _data Data for function call.
      */
