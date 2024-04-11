@@ -93,7 +93,7 @@ abstract contract MultisigBase is Simulator {
 
     function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
-        returns (bool)
+        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
     {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
@@ -126,7 +126,8 @@ abstract contract MultisigBase is Simulator {
             )
         });
 
-        return safe.execTransaction({
+        vm.startStateDiffRecording();
+        bool success = safe.execTransaction({
             to: address(multicall),
             value: 0,
             data: data,
@@ -138,6 +139,30 @@ abstract contract MultisigBase is Simulator {
             refundReceiver: payable(address(0)),
             signatures: _signatures
         });
+        Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
+        require(success, "MultisigBase::_executeTransaction: Transaction failed");
+        require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
+
+        // This can be used to e.g. call out to the Tenderly API and get additional
+        // data about the state diff before broadcasting the transaction.
+        SimulationPayload memory simPayload = SimulationPayload({
+            from: msg.sender,
+            to: address(safe),
+            data: abi.encodeCall(safe.execTransaction, (
+                address(multicall),
+                0,
+                data,
+                Enum.Operation.DelegateCall,
+                0,
+                0,
+                0,
+                address(0),
+                payable(address(0)),
+                _signatures
+            )),
+            stateOverrides: new SimulationStateOverride[](0)
+        });
+        return (accesses, simPayload);
     }
 
     function toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
