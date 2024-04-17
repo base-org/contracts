@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title Vetoer1of2
@@ -19,53 +19,46 @@ contract Vetoer1of2 {
     /**
      * @dev The address of Optimism's signer (likely a multisig)
      */
-    address public immutable OP_SIGNER;
+    address public immutable opSigner;
 
     /**
      * @dev The address of counter party's signer (likely a multisig)
      */
-    address public immutable OTHER_SIGNER;
+    address public immutable otherSigner;
 
     /**
      * @dev The address of the L2OutputOracleProxy contract.
      */
-    address public immutable DELAYED_VETOABLE;
+    address public immutable delayedVetoable;
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS
     //////////////////////////////////////////////////////////////*/
     /**
      * @dev Emitted when a Veto call is made by a signer.
-     * @param _caller The signer making the call.
-     * @param _data The data of the call being made.
-     * @param _result The result of the call being made.
+     * @param caller The signer making the call.
+     * @param data The data of the call being made.
+     * @param result The result of the call being made.
      */
-    event VetoCallExecuted(
-        address indexed _caller,
-        bytes _data,
-        bytes _result
-    );
+    event VetoCallExecuted(address indexed caller, bytes data, bytes result);
 
     /*//////////////////////////////////////////////////////////////
                             Constructor
     //////////////////////////////////////////////////////////////*/
     /**
      * @dev Constructor to set the values of the constants.
-     * @param _opSigner Address of Optimism signer.
-     * @param _otherSigner Address of counter party signer.
-     * @param _delayedVetoable Address of the DelayedVetoable contract.
+     * @param opSigner_ Address of Optimism signer.
+     * @param otherSigner_ Address of counter party signer.
+     * @param delayedVetoable_ Address of the DelayedVetoable contract.
      */
-    constructor(address _opSigner, address _otherSigner, address _delayedVetoable) {
-        require(_opSigner != address(0), "Vetoer1of2: opSigner cannot be zero address");
-        require(_otherSigner != address(0), "Vetoer1of2: otherSigner cannot be zero address");
-        require(
-            _delayedVetoable.isContract(),
-            "Vetoer1of2: delayedVetoable must be a contract"
-        );
+    constructor(address opSigner_, address otherSigner_, address delayedVetoable_) {
+        require(opSigner_ != address(0), "Vetoer1of2: opSigner cannot be zero address");
+        require(otherSigner_ != address(0), "Vetoer1of2: otherSigner cannot be zero address");
+        require(delayedVetoable_.isContract(), "Vetoer1of2: delayedVetoable must be a contract");
 
-        OP_SIGNER = _opSigner;
-        OTHER_SIGNER = _otherSigner;
-        DELAYED_VETOABLE = _delayedVetoable;
+        opSigner = opSigner_;
+        otherSigner = otherSigner_;
+        delayedVetoable = delayedVetoable_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -74,20 +67,15 @@ contract Vetoer1of2 {
     /**
      * @dev Executes a call as the Vetoer (must be called by
      * Optimism or counter party signer).
-     * @param _data Data for function call.
+     * @param data Data for function call.
      */
-    function execute(bytes memory _data) external {
+    function execute(bytes memory data) external {
         require(
-            msg.sender == OTHER_SIGNER || msg.sender == OP_SIGNER,
-            "Vetoer1of2: must be an approved signer to execute"
+            msg.sender == otherSigner || msg.sender == opSigner, "Vetoer1of2: must be an approved signer to execute"
         );
 
-        bytes memory result = Address.functionCall(
-            DELAYED_VETOABLE,
-            _data,
-            "Vetoer1of2: failed to execute"
-        );
+        bytes memory result = Address.functionCall(delayedVetoable, data, "Vetoer1of2: failed to execute");
 
-        emit VetoCallExecuted(msg.sender, _data, result);
+        emit VetoCallExecuted(msg.sender, data, result);
     }
 }
