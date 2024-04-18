@@ -50,6 +50,12 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      */
     function sign(address _signerSafe) public {
         address nestedSafeAddress = _ownerSafe();
+
+        // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
+        // would not match the actual data we need to sign, because the simulation
+        // would increment the nonce.
+        uint256 originalNonce = IGnosisSafe(nestedSafeAddress).nonce();
+
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
         bytes32 hash = _getTransactionHash(_signerSafe, toArray(call));
@@ -58,6 +64,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         console.logBytes32(hash);
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafeAddress, nestedCalls);
         _postCheck(accesses, simPayload);
+
+        // Restore the original nonce.
+        vm.store(nestedSafeAddress, SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
+
         _printDataToSign(_signerSafe, toArray(call));
     }
 
