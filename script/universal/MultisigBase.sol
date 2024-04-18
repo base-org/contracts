@@ -9,6 +9,7 @@ import "./Simulator.sol";
 
 abstract contract MultisigBase is Simulator {
     IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
+    bytes32 internal constant SAFE_NONCE_SLOT = bytes32(uint256(5));
 
     function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
