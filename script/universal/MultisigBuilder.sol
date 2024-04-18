@@ -53,7 +53,7 @@ abstract contract MultisigBuilder is MultisigBase {
         address safe = _ownerSafe();
 
         // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
-        // would be not matching the actual data we need to sign, because the simulation
+        // would not match the actual data we need to sign, because the simulation
         // would increment the nonce.
         uint256 originalNonce = IGnosisSafe(safe).nonce();
 
