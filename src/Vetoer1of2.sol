@@ -27,7 +27,7 @@ contract Vetoer1of2 {
     address public immutable OTHER_SIGNER;
 
     /**
-     * @dev The address of the L2OutputOracleProxy contract.
+     * @dev The address of the DelayedVetoable contract.
      */
     address public immutable DELAYED_VETOABLE;
 
