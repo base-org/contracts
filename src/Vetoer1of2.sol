@@ -26,6 +26,11 @@ contract Vetoer1of2 {
      */
     address public immutable otherSigner;
 
+    /**
+     * @dev The address of the L2OutputOracleProxy contract.
+     */
+    address public immutable delayedVetoable;
+
     /*//////////////////////////////////////////////////////////////
                             EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -44,13 +49,16 @@ contract Vetoer1of2 {
      * @dev Constructor to set the values of the constants.
      * @param opSigner_ Address of Optimism signer.
      * @param otherSigner_ Address of counter party signer.
+     * @param delayedVetoable_ Address of the DelayedVetoable contract.
      */
-    constructor(address opSigner_, address otherSigner_) {
+    constructor(address opSigner_, address otherSigner_, address delayedVetoable_) {
         require(opSigner_ != address(0), "Vetoer1of2: opSigner cannot be zero address");
         require(otherSigner_ != address(0), "Vetoer1of2: otherSigner cannot be zero address");
+        require(delayedVetoable_.isContract(), "Vetoer1of2: delayedVetoable must be a contract");
 
         opSigner = opSigner_;
         otherSigner = otherSigner_;
+        delayedVetoable = delayedVetoable_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -60,9 +68,8 @@ contract Vetoer1of2 {
      * @dev Executes a call as the Vetoer (must be called by
      * Optimism or counter party signer).
      * @param data Data for function call.
-     * @param delayedVetoable Address of the DelayedVetoable contract to call.
      */
-    function execute(bytes memory data, address delayedVetoable) external {
+    function execute(bytes memory data) external {
         require(
             msg.sender == otherSigner || msg.sender == opSigner, "Vetoer1of2: must be an approved signer to execute"
         );
