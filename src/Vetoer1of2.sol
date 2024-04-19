@@ -24,7 +24,7 @@ contract Vetoer1of2 {
     /// @notice The address of counter party's signer (likely a multisig)
     address public immutable otherSigner;
 
-    /// @notice The address of the L2OutputOracleProxy contract.
+    /// @notice The address of the DelayedVetoable contract.
     address public immutable delayedVetoable;
 
     //////////////////////////////////////////////////////////////
