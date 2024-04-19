@@ -55,7 +55,7 @@ abstract contract MultisigBuilder is MultisigBase {
         // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
         // would not match the actual data we need to sign, because the simulation
         // would increment the nonce.
-        uint256 originalNonce = IGnosisSafe(safe).nonce();
+        uint256 originalNonce = _getNonce(IGnosisSafe(safe));
 
         IMulticall3.Call3[] memory calls = _buildCalls();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(safe, calls);
@@ -92,7 +92,7 @@ abstract contract MultisigBuilder is MultisigBase {
         address _safe = _ownerSafe();
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         uint256 _nonce = _getNonce(safe);
-        vm.store(_safe, bytes32(uint256(5)), bytes32(uint256(_nonce)));
+        vm.store(_safe, SAFE_NONCE_SLOT, bytes32(uint256(_nonce)));
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_safe, _buildCalls(), _signatures);
         _postCheck(accesses, simPayload);
     }

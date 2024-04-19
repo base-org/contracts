@@ -54,7 +54,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
         // would not match the actual data we need to sign, because the simulation
         // would increment the nonce.
-        uint256 originalNonce = IGnosisSafe(nestedSafeAddress).nonce();
+        uint256 originalNonce = _getNonce(IGnosisSafe(nestedSafeAddress));
 
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
