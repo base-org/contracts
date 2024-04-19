@@ -34,9 +34,8 @@ contract Vetoer1of2 {
     /// @notice Emitted when a Veto call is made by a signer.
     ///
     /// @param caller The signer making the call.
-    /// @param data The data of the call being made.
     /// @param result The result of the call being made.
-    event VetoCallExecuted(address indexed caller, bytes data, bytes result);
+    event VetoCallExecuted(address indexed caller, bytes result);
 
     //////////////////////////////////////////////////////////////
     //                        Constructor                       //
@@ -73,16 +72,20 @@ contract Vetoer1of2 {
     //                    External Functions                    //
     //////////////////////////////////////////////////////////////
 
-    /// @notice Executes a call as the Vetoer (must be called by Optimism or counter party signer).
+    /// @notice Passthrough for either signer to execute a veto on the `DelayedVetoable` contract.
     ///
-    /// @param data Data for function call.
-    function execute(bytes memory data) external {
+    /// @dev Revert if not called by `opSigner` or `otherSigner`.
+    function veto() external {
         require(
             msg.sender == otherSigner || msg.sender == opSigner, "Vetoer1of2: must be an approved signer to execute"
         );
 
-        bytes memory result = Address.functionCall(delayedVetoable, data, "Vetoer1of2: failed to execute");
+        bytes memory result = Address.functionCall({
+            target: delayedVetoable,
+            data: msg.data,
+            errorMessage: "Vetoer1of2: failed to execute"
+        });
 
-        emit VetoCallExecuted(msg.sender, data, result);
+        emit VetoCallExecuted({caller: msg.sender, result: result});
     }
 }
