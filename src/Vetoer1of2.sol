@@ -38,22 +38,59 @@ contract Vetoer1of2 {
     event VetoCallExecuted(address indexed caller, bytes result);
 
     //////////////////////////////////////////////////////////////
+    //                        ERRORS                            //
+    //////////////////////////////////////////////////////////////
+
+    /// @notice Thrown at deployment if `opSigner` is the zero address.
+    error OpSignerCantBeZeroAddress();
+
+    /// @notice Thrown at deployment if `otherSigner` is the zero address.
+    error OtherSignerCantBeZeroAddress();
+
+    /// @notice Thrown at deployment if `initiator` is the zero address.
+    error InitiatorCantBeZeroAddress();
+
+    /// @notice Thrown at deployment if `target` is the zero address.
+    error TargetCantBeZeroAddress();
+
+    /// @notice Thrown when calling 'veto()' from an unhautorized signer.
+    error SenderIsNotWhitelistedSigner();
+
+    //////////////////////////////////////////////////////////////
     //                        Constructor                       //
     //////////////////////////////////////////////////////////////
 
-    /// @notice Constructor to set the values of the constants.
+    /// @notice Constructor initializing the immutable variables and deploying the `DelayedVetoable`
+    ///         contract.
     ///
     /// @dev The `DelayedVetoable` contract is deployed in this constructor to easily establish
     ///      the link between both contracts.
+    ///
+    /// @custom:reverts OpSignerCantBeZeroAddress() if `opSigner_` is the zero address.
+    /// @custom:reverts OtherSignerCantBeZeroAddress() if `otherSigner_` is the zero address.
+    /// @custom:reverts InitiatorCantBeZeroAddress() if `initiator` is the zero address.
+    /// @custom:reverts TargetCantBeZeroAddress() if `target` is the zero address.
     ///
     /// @param opSigner_ Address of Optimism signer.
     /// @param otherSigner_ Address of counter party signer.
     /// @param initiator Address of the initiator.
     /// @param target Address of the target.
-    /// @param operatingDelay Time to delay when the system is operational.
-    constructor(address opSigner_, address otherSigner_, address initiator, address target, uint256 operatingDelay) {
-        require(opSigner_ != address(0), "Vetoer1of2: opSigner cannot be zero address");
-        require(otherSigner_ != address(0), "Vetoer1of2: otherSigner cannot be zero address");
+    constructor(address opSigner_, address otherSigner_, address initiator, address target) {
+        if (opSigner_ == address(0)) {
+            revert OpSignerCantBeZeroAddress();
+        }
+
+        if (otherSigner_ == address(0)) {
+            revert OtherSignerCantBeZeroAddress();
+        }
+
+        if (initiator == address(0)) {
+            revert InitiatorCantBeZeroAddress();
+        }
+
+        if (target == address(0)) {
+            revert TargetCantBeZeroAddress();
+        }
 
         opSigner = opSigner_;
         otherSigner = otherSigner_;
@@ -63,7 +100,7 @@ contract Vetoer1of2 {
                 vetoer_: address(this),
                 initiator_: initiator,
                 target_: target,
-                operatingDelay_: operatingDelay
+                operatingDelay_: 14 days
             })
         );
     }
@@ -74,11 +111,11 @@ contract Vetoer1of2 {
 
     /// @notice Passthrough for either signer to execute a veto on the `DelayedVetoable` contract.
     ///
-    /// @dev Revert if not called by `opSigner` or `otherSigner`.
+    /// @custom:reverts SenderIsNotWhitelistedSigner() if not called by `opSigner` or `otherSigner`.
     function veto() external {
-        require(
-            msg.sender == otherSigner || msg.sender == opSigner, "Vetoer1of2: must be an approved signer to execute"
-        );
+        if (msg.sender != otherSigner && msg.sender != opSigner) {
+            revert SenderIsNotWhitelistedSigner();
+        }
 
         bytes memory result = Address.functionCall({
             target: delayedVetoable,
