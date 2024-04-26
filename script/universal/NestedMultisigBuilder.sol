@@ -55,6 +55,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // would not match the actual data we need to sign, because the simulation
         // would increment the nonce.
         uint256 originalNonce = _getNonce(IGnosisSafe(nestedSafeAddress));
+        uint256 originalSignerNonce = _getNonce(IGnosisSafe(_signerSafe));
 
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
@@ -67,6 +68,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
 
         // Restore the original nonce.
         vm.store(nestedSafeAddress, SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
+        vm.store(_signerSafe, SAFE_NONCE_SLOT, bytes32(uint256(originalSignerNonce)));
 
         _printDataToSign(_signerSafe, toArray(call));
     }
