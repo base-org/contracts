@@ -264,17 +264,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         } else if (_timestamp > end) {
             return OP_TOKEN.balanceOf(address(this)) + released;
         } else {
-            return _cliffRelease(_timestamp) + ((_timestamp - start) / vestingPeriod) * vestingEventTokens;
-        }
-    }
-
-    /// @notice Returns the cliff amount if past the cliffStart time
-    /// @param _timestamp The timestamp to at which to get cliff release status 
-    function _cliffRelease(uint256 _timestamp) internal view returns (uint256) {
-        if (_timestamp < cliffStart) {
-            return 0;
-        } else {
-            return initialTokens;
+            return initialTokens + ((_timestamp - start) / vestingPeriod) * vestingEventTokens;
         }
     }
 }
