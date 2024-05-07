@@ -91,10 +91,10 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @param endTimestamp The provided end time of the contract.
     error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
 
-    /// @notice The error is thrown when the cliffStart timestamp is in the past.
+    /// @notice The error is thrown when the cliffStart timestamp is less than the start time. 
     /// @param cliffStartTimestamp The provided start time of the contract.
-    /// @param currentTime The current time.
-    error CliffStartTimeInvalid(uint256 cliffStartTimestamp, uint256 currentTime);
+    /// @param startTime The start time
+    error CliffStartTimeInvalid(uint256 cliffStartTimestamp, uint256 startTime);
 
     /// @notice The error is thrown when the cliffStart timestamp is greater than the end timestamp.
     /// @param cliffStartTimestamp The provided start time of the contract.
@@ -153,7 +153,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         }
         if (_start < block.timestamp) revert StartTimeCannotBeInPast(_start, block.timestamp);
         if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
-        if (_cliffStart <= _start) revert CliffStartTimeInvalid(_cliffStart, _start);
+        if (_cliffStart < _start) revert CliffStartTimeInvalid(_cliffStart, _start);
         if (_cliffStart >= _end) revert CliffStartTimeAfterEndTime(_cliffStart, _end);
         if (_vestingPeriodSeconds == 0) revert VestingPeriodIsZeroSeconds();
         if (_vestingEventTokens == 0) revert VestingEventTokensIsZero();
