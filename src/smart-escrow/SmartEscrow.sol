@@ -22,8 +22,11 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Role which can update call terminate.
     bytes32 public constant TERMINATOR_ROLE = keccak256("smartescrow.roles.terminator");
 
-    /// @notice Timestamp of the start of vesting period (or the cliff, if there is one).
+    /// @notice Timestamp of the start of vesting period.
     uint256 public immutable start;
+
+    /// @notice Timestamp of the cliff.
+    uint256 public immutable cliffStart;
 
     /// @notice Timestamp of the end of the vesting period.
     uint256 public immutable end;
@@ -88,6 +91,16 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @param endTimestamp The provided end time of the contract.
     error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
 
+    /// @notice The error is thrown when the cliffStart timestamp is less than the start time. 
+    /// @param cliffStartTimestamp The provided start time of the contract.
+    /// @param startTime The start time
+    error CliffStartTimeInvalid(uint256 cliffStartTimestamp, uint256 startTime);
+
+    /// @notice The error is thrown when the cliffStart timestamp is greater than the end timestamp.
+    /// @param cliffStartTimestamp The provided start time of the contract.
+    /// @param endTimestamp The provided end time of the contract.
+    error CliffStartTimeAfterEndTime(uint256 cliffStartTimestamp, uint256 endTimestamp);
+
     /// @notice The error is thrown when the vesting period is zero.
     error VestingPeriodIsZeroSeconds();
 
@@ -128,6 +141,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         address _beneficiaryOwner,
         address _escrowOwner,
         uint256 _start,
+        uint256 _cliffStart,
         uint256 _end,
         uint256 _vestingPeriodSeconds,
         uint256 _initialTokens,
@@ -139,6 +153,8 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         }
         if (_start < block.timestamp) revert StartTimeCannotBeInPast(_start, block.timestamp);
         if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
+        if (_cliffStart < _start) revert CliffStartTimeInvalid(_cliffStart, _start);
+        if (_cliffStart >= _end) revert CliffStartTimeAfterEndTime(_cliffStart, _end);
         if (_vestingPeriodSeconds == 0) revert VestingPeriodIsZeroSeconds();
         if (_vestingEventTokens == 0) revert VestingEventTokensIsZero();
         if ((_end - _start) < _vestingPeriodSeconds) {
@@ -151,6 +167,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         benefactor = _benefactor;
         beneficiary = _beneficiary;
         start = _start;
+        cliffStart = _cliffStart;
         end = _end;
         vestingPeriod = _vestingPeriodSeconds;
         initialTokens = _initialTokens;
@@ -242,7 +259,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Returns the amount vested as a function of time.
     /// @param _timestamp The timestamp to at which to get the vested amount
     function _vestingSchedule(uint256 _timestamp) internal view returns (uint256) {
-        if (_timestamp < start) {
+        if (_timestamp < cliffStart) {
             return 0;
         } else if (_timestamp > end) {
             return OP_TOKEN.balanceOf(address(this)) + released;

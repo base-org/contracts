@@ -11,19 +11,19 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
     }
 
-    function test_release_afterScheduleStart_succeeds() public {
+    function test_release_afterCliffStart_succeeds() public {
         vm.expectEmit(true, true, true, true);
         emit Transfer(address(smartEscrow), beneficiary, initialTokens);
         vm.expectEmit(true, true, true, true, address(smartEscrow));
         emit TokensReleased(beneficiary, initialTokens);
-        vm.warp(start + 1); // after start, before first vesting period
+        vm.warp(cliffStart + 1); // after start, before first vesting period
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), initialTokens);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease - initialTokens);
     }
 
     function test_release_afterVestingPeriods_succeeds() public {
-        vm.warp(start + 2 * vestingPeriod); // after 2 vesting periods
+        vm.warp(start + 2 * vestingPeriod); // after 2 vesting periods, includes cliff
         uint256 expectedTokens = initialTokens + 2 * vestingEventTokens;
         vm.expectEmit(true, true, true, true, address(OP_TOKEN));
         emit Transfer(address(smartEscrow), beneficiary, expectedTokens);
@@ -50,7 +50,7 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
 
         vm.expectRevert("ERC20: transfer amount exceeds balance");
 
-        vm.warp(start + 1);
+        vm.warp(cliffStart + 1);
         smartEscrow.release();
         assertEq(OP_TOKEN.balanceOf(beneficiary), 0);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), 0);
@@ -70,7 +70,12 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
         // assert total tokens released is correct
         assertEq(smartEscrow.released() + OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
 
-        if (timestamp > start && timestamp < end) {
+        if (timestamp > start && timestamp < cliffStart) {
+            // assert that the token vesting is happening in increments
+            assertEq(releasable, 0);
+        }
+
+        if (timestamp > cliffStart && timestamp < end) {
             // assert that the token vesting is happening in increments
             assertEq((releasable - initialTokens) % uint256(vestingEventTokens), 0);
         }
