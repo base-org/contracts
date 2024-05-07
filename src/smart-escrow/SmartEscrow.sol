@@ -253,7 +253,11 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Calculates the amount of OP that has already vested.
     /// @param _timestamp The timestamp to at which to get the vested amount
     function vestedAmount(uint256 _timestamp) public view returns (uint256) {
-        return _vestingSchedule(_timestamp) + _cliffRelease(_timestamp);
+        if (_timestamp > end) {
+            return OP_TOKEN.balanceOf(address(this)) + released;
+        } else {
+            return _vestingSchedule(_timestamp) + _cliffRelease(_timestamp);
+        }
     }
 
     /// @notice Returns the amount vested as a function of time.
@@ -261,8 +265,6 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     function _vestingSchedule(uint256 _timestamp) internal view returns (uint256) {
         if (_timestamp < start) {
             return 0;
-        } else if (_timestamp > end) {
-            return OP_TOKEN.balanceOf(address(this)) + released;
         } else {
             return ((_timestamp - start) / vestingPeriod) * vestingEventTokens;
         }

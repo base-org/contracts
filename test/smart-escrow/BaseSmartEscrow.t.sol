@@ -26,8 +26,9 @@ contract BaseSmartEscrowTest is CommonTest {
     address public beneficiary = address(3);
     address public beneficiaryOwner = address(4);
     address public escrowOwner = address(5);
-    uint256 public start = 1720106400;
-    uint256 public end = 1870005000;
+    uint256 public start = 1720674000;
+    uint256 public cliffStart = 1724976000;
+    uint256 public end = 1878462000;
     uint256 public vestingPeriod = 7889400;
     uint256 public initialTokens = 17895697;
     uint256 public vestingEventTokens = 4473924;
@@ -41,6 +42,7 @@ contract BaseSmartEscrowTest is CommonTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,

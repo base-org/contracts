@@ -14,6 +14,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,
@@ -31,6 +32,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,
@@ -48,6 +50,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,
@@ -65,6 +68,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             address(0),
             escrowOwner,
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,
@@ -81,6 +85,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             address(0),
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,
@@ -99,6 +104,26 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             0,
+            cliffStart,
+            end,
+            vestingPeriod,
+            initialTokens,
+            vestingEventTokens
+        );
+    }
+
+    function test_constructor_cliffStartTimeZero_fails() public {
+        vm.warp(100);
+        bytes4 pastStartTimeSelector = bytes4(keccak256("CliffStartTimeCannotBeInPast(uint256,uint256)"));
+        vm.expectRevert(abi.encodeWithSelector(pastStartTimeSelector, 0, 100));
+        new SmartEscrow(
+            benefactor,
+            beneficiary,
+            benefactorOwner,
+            beneficiaryOwner,
+            escrowOwner,
+            start,
+            0,
             end,
             vestingPeriod,
             initialTokens,
@@ -115,6 +140,25 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             benefactorOwner,
             beneficiaryOwner,
             escrowOwner,
+            end,
+            cliffStart,
+            end,
+            vestingPeriod,
+            initialTokens,
+            vestingEventTokens
+        );
+    }
+
+    function test_constructor_cliffStartAfterEnd_fails() public {
+        bytes4 startAfterEndSelector = bytes4(keccak256("CliffStartTimeAfterEndTime(uint256,uint256)"));
+        vm.expectRevert(abi.encodeWithSelector(startAfterEndSelector, end, end));
+        new SmartEscrow(
+            benefactor,
+            beneficiary,
+            benefactorOwner,
+            beneficiaryOwner,
+            escrowOwner,
+            start,
             end,
             end,
             vestingPeriod,
@@ -133,6 +177,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             0,
             initialTokens,
@@ -150,6 +195,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             vestingPeriod,
             initialTokens,
@@ -167,6 +213,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             end,
             initialTokens,
@@ -185,6 +232,7 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
             beneficiaryOwner,
             escrowOwner,
             start,
+            cliffStart,
             end,
             unevenVestingPeriod,
             initialTokens,
