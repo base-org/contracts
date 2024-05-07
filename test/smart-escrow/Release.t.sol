@@ -70,7 +70,12 @@ contract ReleaseSmartEscrow is BaseSmartEscrowTest {
         // assert total tokens released is correct
         assertEq(smartEscrow.released() + OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
 
-        if (timestamp > start && timestamp < end) {
+        if (timestamp > start && timestamp < cliffStart) {
+            // assert that the token vesting is happening in increments
+            assertEq(releasable, 0);
+        }
+
+        if (timestamp > cliffStart && timestamp < end) {
             // assert that the token vesting is happening in increments
             assertEq((releasable - initialTokens) % uint256(vestingEventTokens), 0);
         }
