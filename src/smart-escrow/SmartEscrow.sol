@@ -94,7 +94,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice The error is thrown when the cliffStart timestamp is in the past.
     /// @param cliffStartTimestamp The provided start time of the contract.
     /// @param currentTime The current time.
-    error CliffStartTimeCannotBeInPast(uint256 cliffStartTimestamp, uint256 currentTime);
+    error CliffStartTimeInvalid(uint256 cliffStartTimestamp, uint256 currentTime);
 
     /// @notice The error is thrown when the cliffStart timestamp is greater than the end timestamp.
     /// @param cliffStartTimestamp The provided start time of the contract.
@@ -152,8 +152,8 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
             revert AddressIsZeroAddress();
         }
         if (_start < block.timestamp) revert StartTimeCannotBeInPast(_start, block.timestamp);
-        if (_cliffStart < block.timestamp) revert CliffStartTimeCannotBeInPast(_cliffStart, block.timestamp);
         if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
+        if (_cliffStart <= _start) revert CliffStartTimeInvalid(_cliffStart, _start);
         if (_cliffStart >= _end) revert CliffStartTimeAfterEndTime(_cliffStart, _end);
         if (_vestingPeriodSeconds == 0) revert VestingPeriodIsZeroSeconds();
         if (_vestingEventTokens == 0) revert VestingEventTokensIsZero();
@@ -259,7 +259,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Returns the amount vested as a function of time.
     /// @param _timestamp The timestamp to at which to get the vested amount
     function _vestingSchedule(uint256 _timestamp) internal view returns (uint256) {
-        if (_timestamp < start) {
+        if (_timestamp < cliffStart) {
             return 0;
         } else if (_timestamp > end) {
             return OP_TOKEN.balanceOf(address(this)) + released;

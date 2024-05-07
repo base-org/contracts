@@ -114,8 +114,8 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
 
     function test_constructor_cliffStartTimeZero_fails() public {
         vm.warp(100);
-        bytes4 pastStartTimeSelector = bytes4(keccak256("CliffStartTimeCannotBeInPast(uint256,uint256)"));
-        vm.expectRevert(abi.encodeWithSelector(pastStartTimeSelector, 0, 100));
+        bytes4 pastStartTimeSelector = bytes4(keccak256("CliffStartTimeInvalid(uint256,uint256)"));
+        vm.expectRevert(abi.encodeWithSelector(pastStartTimeSelector, 0, start));
         new SmartEscrow(
             benefactor,
             beneficiary,
