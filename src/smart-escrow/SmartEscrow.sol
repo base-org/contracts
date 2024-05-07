@@ -22,8 +22,11 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Role which can update call terminate.
     bytes32 public constant TERMINATOR_ROLE = keccak256("smartescrow.roles.terminator");
 
-    /// @notice Timestamp of the start of vesting period (or the cliff, if there is one).
+    /// @notice Timestamp of the start of vesting period.
     uint256 public immutable start;
+
+    /// @notice Timestamp of the cliff.
+    uint256 public immutable cliffStart;
 
     /// @notice Timestamp of the end of the vesting period.
     uint256 public immutable end;
@@ -88,6 +91,16 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @param endTimestamp The provided end time of the contract.
     error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
 
+    /// @notice The error is thrown when the cliffStart timestamp is in the past.
+    /// @param cliffStartTimestamp The provided start time of the contract.
+    /// @param currentTime The current time.
+    error CliffStartTimeCannotBeInPast(uint256 cliffStartTimestamp, uint256 currentTime);
+
+    /// @notice The error is thrown when the cliffStart timestamp is greater than the end timestamp.
+    /// @param cliffStartTimestamp The provided start time of the contract.
+    /// @param endTimestamp The provided end time of the contract.
+    error CliffStartTimeAfterEndTime(uint256 cliffStartTimestamp, uint256 endTimestamp);
+
     /// @notice The error is thrown when the vesting period is zero.
     error VestingPeriodIsZeroSeconds();
 
@@ -128,6 +141,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         address _beneficiaryOwner,
         address _escrowOwner,
         uint256 _start,
+        uint256 _cliffStart,
         uint256 _end,
         uint256 _vestingPeriodSeconds,
         uint256 _initialTokens,
@@ -138,7 +152,9 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
             revert AddressIsZeroAddress();
         }
         if (_start < block.timestamp) revert StartTimeCannotBeInPast(_start, block.timestamp);
+        if (_cliffStart < block.timestamp) revert CliffStartTimeCannotBeInPast(_cliffStart, block.timestamp);
         if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
+        if (_cliffStart >= _end) revert CliffStartTimeAfterEndTime(_cliffStart, _end);
         if (_vestingPeriodSeconds == 0) revert VestingPeriodIsZeroSeconds();
         if (_vestingEventTokens == 0) revert VestingEventTokensIsZero();
         if ((_end - _start) < _vestingPeriodSeconds) {
@@ -151,6 +167,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         benefactor = _benefactor;
         beneficiary = _beneficiary;
         start = _start;
+        cliffStart = _cliffStart;
         end = _end;
         vestingPeriod = _vestingPeriodSeconds;
         initialTokens = _initialTokens;
@@ -236,7 +253,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Calculates the amount of OP that has already vested.
     /// @param _timestamp The timestamp to at which to get the vested amount
     function vestedAmount(uint256 _timestamp) public view returns (uint256) {
-        return _vestingSchedule(_timestamp);
+        return _vestingSchedule(_timestamp) + _cliffRelease(_timestamp);
     }
 
     /// @notice Returns the amount vested as a function of time.
@@ -247,7 +264,17 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         } else if (_timestamp > end) {
             return OP_TOKEN.balanceOf(address(this)) + released;
         } else {
-            return initialTokens + ((_timestamp - start) / vestingPeriod) * vestingEventTokens;
+            return ((_timestamp - start) / vestingPeriod) * vestingEventTokens;
+        }
+    }
+
+    /// @notice Returns the cliff amount if past the cliffStart time
+    /// @param _timestamp The timestamp to at which to get cliff release status 
+    function _cliffRelease(uint256 _timestamp) internal view returns (uint256) {
+        if (_timestamp < cliffStart) {
+            return 0;
+        } else {
+            return initialTokens;
         }
     }
 }
