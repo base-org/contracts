@@ -67,7 +67,12 @@ abstract contract MultisigBase is Simulator {
         console.log("---\nData to sign:");
         console.log("vvvvvvvv");
         console.logBytes(txData);
-        console.log("^^^^^^^^");
+        console.log("^^^^^^^^\n");
+
+        console.log("########## IMPORTANT ##########");
+        console.log("Please make sure that the 'Data to sign' displayed above matches what you see in the simulation and on your hardware wallet.");
+        console.log("This is a critical step that must not be skipped.");
+        console.log("###############################");
     }
 
     function _checkSignatures(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
