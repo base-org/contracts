@@ -40,6 +40,34 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * -----------------------------------------------------------
      */
 
+    // Virtual method which can be overwritten.
+    // This allows different nonce overrides for each safe in the nested multisig case.
+    // IMPORTANT: this method is used in the sign, simulate, AND execution contexts
+    // If you override it, ensure that the behavior is correct for all contexts
+    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before safe.nonce is executed),
+    // you should explicitly set the nonce value with an env var.
+    // Overwriting this method with safe.nonce + 1 will cause issues upon execution because the transaction
+    // hash will differ from the one signed.
+    function _getNonce(IGnosisSafe safe) internal view override virtual returns (uint256 nonce) {
+        string memory safeAddrStr = vm.toString(address(safe));
+        nonce = safe.nonce();
+        console.log("Safe", safeAddrStr, "current nonce:", nonce);
+
+        // In this overridden method, the process for determining the nonce is as follows:
+        //   1. We look for an env var of the name SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}. For example,
+        //      SAFE_NONCE_0X6DF4742A3C28790E63FE933F7D108FE9FCE51EA4.
+        //   2. If it exists, we use it as the nonce override for the safe.
+        //   3. If it does not exist, we use the current nonce of the safe.
+        //   4. We explicitly do not use SAFE_NONCE as a fallback, because in the nested case it is
+        //      ambiguous which safe it refers to.
+        string memory safeNonceEnvVarName = string.concat("SAFE_NONCE_", vm.toUppercase(safeAddrStr));
+        try vm.envUint(safeNonceEnvVarName) {
+            nonce = vm.envUint(safeNonceEnvVarName);
+            console.log("Creating transaction with nonce:", nonce);
+        }
+        catch {}
+    }
+
     /**
      * Step 1
      * ======
@@ -216,17 +244,33 @@ abstract contract NestedMultisigBuilder is MultisigBase {
             callData: finalExec
         });
 
+        // For each safe, determine if a nonce override is needed. At this point,
+        // no state overrides (i.e. vm.store) have been applied to the Foundry VM,
+        // meaning the nonce is not yet overriden. Therefore these calls to
+        // `safe.nonce()` will correctly return the current nonce of the safe.
+        bool safeNonceOverride = _getNonce(safe) != safe.nonce();
+        bool signerSafeNonceOverride = _getNonce(signerSafe) != signerSafe.nonce();
+
+        // Now define the state overrides for the simulation.
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
         // The state change simulation sets the multisig threshold to 1 in the
         // simulation to enable an approver to see what the final state change
         // will look like upon transaction execution. The multisig threshold
         // will not actually change in the transaction execution.
-        overrides[0] = overrideSafeThreshold(_safe);
+        if (safeNonceOverride) {
+            overrides[0] = overrideSafeThresholdAndNonce(_safe, _getNonce(safe));
+        } else {
+            overrides[0] = overrideSafeThreshold(_safe);
+        }
         // Set the signer safe threshold to 1, and set the owner to multicall.
         // This is a little hacky; reason is to simulate both the approve hash
         // and the final tx in a single Tenderly tx, using multicall. Given an
         // EOA cannot DELEGATECALL, multicall needs to own the signer safe.
-        overrides[1] = overrideSafeThresholdAndOwner(_signerSafe, address(multicall));
+        if (signerSafeNonceOverride) {
+            overrides[1] = overrideSafeThresholdOwnerAndNonce(_signerSafe, address(multicall), _getNonce(signerSafe));
+        } else {
+            overrides[1] = overrideSafeThresholdAndOwner(_signerSafe, address(multicall));
+        }
 
         bytes memory txData = abi.encodeCall(IMulticall3.aggregate3, (calls));
         console.log("---\nSimulation link:");
