@@ -183,7 +183,6 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Releases any vested token to the beneficiary before terminating.
     /// @notice Emits a {ContractTerminated} event.
     function terminate() external onlyRole(TERMINATOR_ROLE) {
-        if (contractTerminated) revert ContractIsTerminated();
         release();
         contractTerminated = true;
         emit ContractTerminated();
