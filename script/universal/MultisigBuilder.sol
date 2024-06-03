@@ -121,9 +121,31 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
+        // Optional state overrides can be set using _addGenericOverrides() and/or _addMultipleGenericOverrides().
+        SimulationStateOverride memory genericOverride = _addGenericOverrides();
+        uint256 genericOverridelength = genericOverride.contractAddress != address(0) ? 1 : 0;
+        SimulationStateOverride[] memory multipleGenericOverrides = _addMultipleGenericOverrides();
+
+        // Initialize the overrides array with a length based on the number of generic overrides returned above.
+        SimulationStateOverride[] memory overrides =
+            new SimulationStateOverride[](1 + genericOverridelength + multipleGenericOverrides.length);
+
+        // The basic safe overrides are always added.
         overrides[0] = _addOverrides(_safe);
-        overrides[1] = _addGenericOverrides();
+
+        // In order to avoid adding empty overrides to the simulation, we check for the presence of generic overrides
+        // and expand the overrides array just enough to accommodate them.
+        uint256 index = 1;
+        if (genericOverridelength == 1) {
+            overrides[1] = genericOverride;
+            index++;
+        }
+        if (multipleGenericOverrides.length > 0) {
+            for (uint256 i = 0; i < multipleGenericOverrides.length; i++) {
+                overrides[index] = multipleGenericOverrides[i];
+                index++;
+            }
+        }
 
         bytes memory txData = abi.encodeCall(safe.execTransaction,
             (
@@ -174,4 +196,11 @@ abstract contract MultisigBuilder is MultisigBase {
     // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
     // By default, an empty (no-op) override is returned
     function _addGenericOverrides() internal virtual view returns (SimulationStateOverride memory override_) {}
+
+    function _addMultipleGenericOverrides()
+        internal
+        view
+        virtual
+        returns (SimulationStateOverride[] memory overrides_)
+    {}
 }
