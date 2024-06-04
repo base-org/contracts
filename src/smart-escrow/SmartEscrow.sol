@@ -183,7 +183,6 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice Releases any vested token to the beneficiary before terminating.
     /// @notice Emits a {ContractTerminated} event.
     function terminate() external onlyRole(TERMINATOR_ROLE) {
-        if (contractTerminated) revert ContractIsTerminated();
         release();
         contractTerminated = true;
         emit ContractTerminated();
@@ -199,6 +198,8 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     }
 
     /// @notice Allow benefactor owner to update benefactor address.
+    /// @dev This method does not adjust the BENEFACTOR_OWNER_ROLE. Ensure to pair calling this
+    /// with a role change by DEFAULT_ADMIN if this is the desired outcome.  
     /// @param _newBenefactor New benefactor address.
     /// @notice Emits a {BenefactorUpdated} event.
     function updateBenefactor(address _newBenefactor) external onlyRole(BENEFACTOR_OWNER_ROLE) {
@@ -211,6 +212,8 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     }
 
     /// @notice Allow beneficiary owner to update beneficiary address.
+    /// @dev This method does not adjust the BENEFICIARY_OWNER_ROLE. Ensure to pair calling this
+    /// with a role change by DEFAULT_ADMIN if this is the desired outcome.
     /// @param _newBeneficiary New beneficiary address.
     /// @notice Emits a {BeneficiaryUpdated} event.
     function updateBeneficiary(address _newBeneficiary) external onlyRole(BENEFICIARY_OWNER_ROLE) {
