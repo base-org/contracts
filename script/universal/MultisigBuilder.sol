@@ -121,7 +121,6 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        // Initialize the overrides array with a length based on the number of generic overrides returned above.
         SimulationStateOverride[] memory overrides = _setOverrides(_safe);
 
         bytes memory txData = abi.encodeCall(safe.execTransaction,
