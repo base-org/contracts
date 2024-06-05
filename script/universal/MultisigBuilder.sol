@@ -121,31 +121,8 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        // Optional state overrides can be set using _addGenericOverrides() and/or _addMultipleGenericOverrides().
-        SimulationStateOverride memory genericOverride = _addGenericOverrides();
-        uint256 genericOverridelength = genericOverride.contractAddress != address(0) ? 1 : 0;
-        SimulationStateOverride[] memory multipleGenericOverrides = _addMultipleGenericOverrides();
-
         // Initialize the overrides array with a length based on the number of generic overrides returned above.
-        SimulationStateOverride[] memory overrides =
-            new SimulationStateOverride[](1 + genericOverridelength + multipleGenericOverrides.length);
-
-        // The basic safe overrides are always added.
-        overrides[0] = _addOverrides(_safe);
-
-        // In order to avoid adding empty overrides to the simulation, we check for the presence of generic overrides
-        // and expand the overrides array just enough to accommodate them.
-        uint256 index = 1;
-        if (genericOverridelength == 1) {
-            overrides[1] = genericOverride;
-            index++;
-        }
-        if (multipleGenericOverrides.length > 0) {
-            for (uint256 i = 0; i < multipleGenericOverrides.length; i++) {
-                overrides[index] = multipleGenericOverrides[i];
-                index++;
-            }
-        }
+        SimulationStateOverride[] memory overrides = _setOverrides(_safe);
 
         bytes memory txData = abi.encodeCall(safe.execTransaction,
             (
@@ -203,4 +180,15 @@ abstract contract MultisigBuilder is MultisigBase {
         virtual
         returns (SimulationStateOverride[] memory overrides_)
     {}
+
+    function _setOverrides(address _safe) internal virtual returns (SimulationStateOverride[] memory) {
+        SimulationStateOverride[] memory extraOverrides = _addMultipleGenericOverrides();
+        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2 + extraOverrides.length);
+        overrides[0] = _addOverrides(_safe);
+        overrides[1] = _addGenericOverrides();
+        for (uint256 i = 0; i < extraOverrides.length; i++) {
+            overrides[i + 2] = extraOverrides[i];
+        }
+        return overrides;
+    }
 }
