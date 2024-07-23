@@ -121,9 +121,7 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
-        overrides[0] = _addOverrides(_safe);
-        overrides[1] = _addGenericOverrides();
+        SimulationStateOverride[] memory overrides = _setOverrides(_safe);
 
         bytes memory txData = abi.encodeCall(safe.execTransaction,
             (
@@ -174,4 +172,22 @@ abstract contract MultisigBuilder is MultisigBase {
     // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
     // By default, an empty (no-op) override is returned
     function _addGenericOverrides() internal virtual view returns (SimulationStateOverride memory override_) {}
+
+    function _addMultipleGenericOverrides()
+        internal
+        view
+        virtual
+        returns (SimulationStateOverride[] memory overrides_)
+    {}
+
+    function _setOverrides(address _safe) internal virtual returns (SimulationStateOverride[] memory) {
+        SimulationStateOverride[] memory extraOverrides = _addMultipleGenericOverrides();
+        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2 + extraOverrides.length);
+        overrides[0] = _addOverrides(_safe);
+        overrides[1] = _addGenericOverrides();
+        for (uint256 i = 0; i < extraOverrides.length; i++) {
+            overrides[i + 2] = extraOverrides[i];
+        }
+        return overrides;
+    }
 }
