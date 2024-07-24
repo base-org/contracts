@@ -107,7 +107,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
     function initialize(
         address payable[] memory _systemAddresses,
         uint256[] memory _targetBalances
-    ) external initializer {
+    ) external reinitializer(2) {
         uint256 systemAddresesLength = _systemAddresses.length;
         require(systemAddresesLength > 0, 
             "BalanceTracker: systemAddresses cannot have a length of zero");
