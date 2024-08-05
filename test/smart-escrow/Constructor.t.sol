@@ -93,25 +93,6 @@ contract ConstructorSmartEscrow is BaseSmartEscrowTest {
         );
     }
 
-    function test_constructor_startTimeZero_fails() public {
-        vm.warp(100);
-        bytes4 pastStartTimeSelector = bytes4(keccak256("StartTimeCannotBeInPast(uint256,uint256)"));
-        vm.expectRevert(abi.encodeWithSelector(pastStartTimeSelector, 0, 100));
-        new SmartEscrow(
-            benefactor,
-            beneficiary,
-            benefactorOwner,
-            beneficiaryOwner,
-            escrowOwner,
-            0,
-            cliffStart,
-            end,
-            vestingPeriod,
-            initialTokens,
-            vestingEventTokens
-        );
-    }
-
     function test_constructor_cliffStartTimeZero_fails() public {
         vm.warp(100);
         bytes4 pastStartTimeSelector = bytes4(keccak256("CliffStartTimeInvalid(uint256,uint256)"));

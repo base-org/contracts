@@ -81,11 +81,6 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @notice The error is thrown when an address is not set.
     error AddressIsZeroAddress();
 
-    /// @notice The error is thrown when the start timestamp is in the past.
-    /// @param startTimestamp The provided start time of the contract.
-    /// @param currentTime The current time.
-    error StartTimeCannotBeInPast(uint256 startTimestamp, uint256 currentTime);
-
     /// @notice The error is thrown when the start timestamp is greater than the end timestamp.
     /// @param startTimestamp The provided start time of the contract.
     /// @param endTimestamp The provided end time of the contract.
@@ -151,7 +146,6 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         _beneficiaryOwner == address(0) || _benefactorOwner == address(0)) {
             revert AddressIsZeroAddress();
         }
-        if (_start < block.timestamp) revert StartTimeCannotBeInPast(_start, block.timestamp);
         if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
         if (_cliffStart < _start) revert CliffStartTimeInvalid(_cliffStart, _start);
         if (_cliffStart >= _end) revert CliffStartTimeAfterEndTime(_cliffStart, _end);
