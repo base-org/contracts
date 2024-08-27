@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
-import {IGnosisSafe, Enum} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
 import {LibSort} from "solady/utils/LibSort.sol";
 import "./Simulator.sol";
 
