@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
+import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
 import {LibSort} from "solady/utils/LibSort.sol";
 import "./Simulator.sol";
 
@@ -83,12 +84,8 @@ abstract contract MultisigBase is Simulator {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
 
-        uint256 signatureCount = uint256(_signatures.length / 0x41);
-        uint256 threshold = safe.getThreshold();
-        require(signatureCount >= threshold, "not enough signatures");
-
-        // safe requires signatures to be sorted ascending by public key
-        _signatures = sortSignatures(_signatures, hash);
+        // safe requires all signatures to be unique, and sorted ascending by public key
+        _signatures = sortUniqueSignatures(_signatures, hash, safe.getThreshold());
 
         safe.checkSignatures({
             dataHash: hash,
@@ -105,12 +102,8 @@ abstract contract MultisigBase is Simulator {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
 
-        uint256 signatureCount = uint256(_signatures.length / 0x41);
-        uint256 threshold = safe.getThreshold();
-        require(signatureCount >= threshold, "not enough signatures");
-
-        // safe requires signatures to be sorted ascending by public key
-        _signatures = sortSignatures(_signatures, hash);
+        // safe requires all signatures to be unique, and sorted ascending by public key
+        _signatures = sortUniqueSignatures(_signatures, hash, safe.getThreshold());
 
         logSimulationLink({
             _to: _safe,
@@ -193,13 +186,16 @@ abstract contract MultisigBase is Simulator {
         return abi.encodePacked(r, s, v);
     }
 
-    function sortSignatures(bytes memory _signatures, bytes32 dataHash) internal pure returns (bytes memory) {
+    // see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
+    function sortUniqueSignatures(bytes memory _signatures, bytes32 dataHash, uint256 threshold) internal pure returns (bytes memory) {
         bytes memory sorted;
         uint256 count = uint256(_signatures.length / 0x41);
-        uint256[] memory addressesAndIndexes = new uint256[](count);
+        uint256[] memory addressesAndIndexes = new uint256[](threshold);
+        address[] memory uniqueAddresses = new address[](threshold);
         uint8 v;
         bytes32 r;
         bytes32 s;
+        uint256 j;
         for (uint256 i; i < count; i++) {
             (v, r, s) = signatureSplit(_signatures, i);
             address owner;
@@ -211,14 +207,36 @@ abstract contract MultisigBase is Simulator {
             } else {
                 owner = ecrecover(dataHash, v, r, s);
             }
-            addressesAndIndexes[i] = uint256(uint256(uint160(owner)) << 0x60 | i); // address in first 160 bits, index in second 96 bits
+
+            // skip duplicate owners
+            uint256 k;
+            for (; k < j; k++) {
+                if (uniqueAddresses[k] == owner) break;
+            }
+            if (k < j) continue;
+
+            uniqueAddresses[j] = owner;
+            addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i); // address in first 160 bits, index in second 96 bits
+            j++;
+
+            // we have enough signatures to reach the threshold
+            if (j == threshold) break;
         }
+        require(j == threshold, "not enough signatures");
+
         LibSort.sort(addressesAndIndexes);
         for (uint256 i; i < count; i++) {
             uint256 index = addressesAndIndexes[i] & 0xffffffff;
             (v, r, s) = signatureSplit(_signatures, index);
             sorted = bytes.concat(sorted, abi.encodePacked(r, s, v));
         }
+
+        // append the non-static part of the signatures (can contain EIP-1271 signatures if contracts are signers)
+        // if there were any duplicates detected above, they will be safely ignored by Safe's checkNSignatures method
+        if (_signatures.length > sorted.length) {
+            sorted = bytes.concat(sorted, Bytes.slice(_signatures, sorted.length, _signatures.length - sorted.length));
+        }
+
         return sorted;
     }
 
