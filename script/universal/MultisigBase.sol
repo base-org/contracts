@@ -177,6 +177,18 @@ abstract contract MultisigBase is Simulator {
         return calls;
     }
 
+    function prevalidatedSignaturesAndCheckDuplicate(bytes memory _signatures, address[] memory _addresses) internal pure returns (bytes memory) {
+        LibSort.sort(_addresses);
+        bytes[] memory signaturesList = signatureSplitList(_signatures);
+        for (uint256 i; i < _addresses.length; i++) {
+            bytes memory newSignature = prevalidatedSignature(_addresses[i]);
+            if(!checkDuplicate(signaturesList, newSignature)) {
+                _signatures = bytes.concat(_signatures, newSignature);
+            }
+        }
+        return _signatures;
+    }
+
     function prevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
         LibSort.sort(_addresses);
         bytes memory signatures;
@@ -184,6 +196,15 @@ abstract contract MultisigBase is Simulator {
             signatures = bytes.concat(signatures, prevalidatedSignature(_addresses[i]));
         }
         return signatures;
+    }
+
+    function checkDuplicate(bytes[] memory _signatures, bytes memory newSignature) internal pure returns (bool) {
+        for(uint i; i < _signatures.length; i++) {
+            if(keccak256(_signatures[i]) == keccak256(newSignature)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function prevalidatedSignature(address _address) internal pure returns (bytes memory) {
@@ -220,6 +241,19 @@ abstract contract MultisigBase is Simulator {
             sorted = bytes.concat(sorted, abi.encodePacked(r, s, v));
         }
         return sorted;
+    }
+
+    function signatureSplitList(bytes memory _signatures) internal pure returns (bytes[] memory) {
+        uint256 count = uint256(_signatures.length / 0x41);
+        bytes[] memory signatures = new bytes[](count);
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        for (uint256 i; i < count; i++) {
+            (v, r, s) = signatureSplit(_signatures, i);
+            signatures[i] = abi.encodePacked(r, s, v);
+        }
+        return signatures;
     }
 
     // see https://github.com/safe-global/safe-contracts/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/common/SignatureDecoder.sol

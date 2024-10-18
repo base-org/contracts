@@ -6,7 +6,7 @@ import "./MultisigBase.sol";
 import { console } from "forge-std/console.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 
-import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+// import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
 
 /**
  * @title NestedMultisigBuilder
@@ -114,7 +114,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
 
         address[] memory approvers = _getApprovers(_signerSafe, toArray(call));
-        _signatures = bytes.concat(_signatures, prevalidatedSignatures(approvers));
+        _signatures = prevalidatedSignaturesAndCheckDuplicate(_signatures, approvers);
 
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
