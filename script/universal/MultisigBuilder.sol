@@ -134,7 +134,7 @@ abstract contract MultisigBuilder is MultisigBase {
                 0,
                 address(0),
                 payable(address(0)),
-                prevalidatedSignature(msg.sender)
+                genPrevalidatedSignature(msg.sender)
             )
         );
 

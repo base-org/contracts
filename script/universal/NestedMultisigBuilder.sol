@@ -111,9 +111,6 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
 
-        address[] memory approvers = _getApprovers(_signerSafe, toArray(call));
-        _signatures = bytes.concat(_signatures, prevalidatedSignatures(approvers));
-
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
         vm.stopBroadcast();
@@ -130,8 +127,9 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     function run() public {
         address nestedSafeAddress = _ownerSafe();
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
-        address[] memory approvers = _getApprovers(nestedSafeAddress, nestedCalls);
-        bytes memory signatures = prevalidatedSignatures(approvers);
+
+        // signatures is empty, because `_executeTransaction` internally collects all of the approvedHash addresses
+        bytes memory signatures;
 
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
@@ -152,33 +150,6 @@ abstract contract NestedMultisigBuilder is MultisigBase {
             allowFailure: false,
             callData: abi.encodeCall(safe.approveHash, (hash))
         });
-    }
-
-    function _getApprovers(address _safe, IMulticall3.Call3[] memory _calls) internal view returns (address[] memory) {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        bytes32 hash = _getTransactionHash(_safe, _calls);
-
-        // get a list of owners that have approved this transaction
-        uint256 threshold = safe.getThreshold();
-        address[] memory owners = safe.getOwners();
-        address[] memory approvers = new address[](threshold);
-        uint256 approverIndex;
-        for (uint256 i; i < owners.length; i++) {
-            address owner = owners[i];
-            uint256 approved = safe.approvedHashes(owner, hash);
-            if (approved == 1) {
-                approvers[approverIndex] = owner;
-                approverIndex++;
-                if (approverIndex == threshold) {
-                    return approvers;
-                }
-            }
-        }
-        address[] memory subset = new address[](approverIndex);
-        for (uint256 i; i < approverIndex; i++) {
-            subset[i] = approvers[i];
-        }
-        return subset;
     }
 
     function _simulateForSigner(address _signerSafe, address _safe, IMulticall3.Call3[] memory _calls)
@@ -211,7 +182,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 0,
                 address(0),
                 payable(address(0)),
-                prevalidatedSignature(address(multicall))
+                genPrevalidatedSignature(address(multicall))
             )
         );
         calls[0] = IMulticall3.Call3({
@@ -233,7 +204,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 0,
                 address(0),
                 payable(address(0)),
-                prevalidatedSignature(_signerSafe)
+                genPrevalidatedSignature(_signerSafe)
             )
         );
         calls[1] = IMulticall3.Call3({

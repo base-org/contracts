@@ -83,9 +83,7 @@ abstract contract MultisigBase is Simulator {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
-
-        // safe requires all signatures to be unique, and sorted ascending by public key
-        _signatures = sortUniqueSignatures(_signatures, hash, safe.getThreshold());
+        _signatures = prepareSignatures(_safe, hash, _signatures);
 
         safe.checkSignatures({
             dataHash: hash,
@@ -101,9 +99,7 @@ abstract contract MultisigBase is Simulator {
         IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
-
-        // safe requires all signatures to be unique, and sorted ascending by public key
-        _signatures = sortUniqueSignatures(_signatures, hash, safe.getThreshold());
+        _signatures = prepareSignatures(_safe, hash, _signatures);
 
         logSimulationLink({
             _to: _safe,
@@ -170,24 +166,71 @@ abstract contract MultisigBase is Simulator {
         return calls;
     }
 
-    function prevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
+    function prepareSignatures(address _safe, bytes32 hash, bytes memory _signatures) internal view returns (bytes memory) {
+        // prepend the prevalidated signatures to the signatures
+        address[] memory approvers = _getApprovers(_safe, hash);
+        bytes memory prevalidatedSignatures = genPrevalidatedSignatures(approvers);
+        _signatures = bytes.concat(prevalidatedSignatures, _signatures);
+
+        // safe requires all signatures to be unique, and sorted ascending by public key
+        return sortUniqueSignatures(_signatures, hash, IGnosisSafe(_safe).getThreshold(), prevalidatedSignatures.length);
+    }
+
+    function genPrevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
         LibSort.sort(_addresses);
         bytes memory signatures;
         for (uint256 i; i < _addresses.length; i++) {
-            signatures = bytes.concat(signatures, prevalidatedSignature(_addresses[i]));
+            signatures = bytes.concat(signatures, genPrevalidatedSignature(_addresses[i]));
         }
         return signatures;
     }
 
-    function prevalidatedSignature(address _address) internal pure returns (bytes memory) {
+    function genPrevalidatedSignature(address _address) internal pure returns (bytes memory) {
         uint8 v = 1;
         bytes32 s = bytes32(0);
         bytes32 r = bytes32(uint256(uint160(_address)));
         return abi.encodePacked(r, s, v);
     }
 
-    // see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
-    function sortUniqueSignatures(bytes memory _signatures, bytes32 dataHash, uint256 threshold) internal pure returns (bytes memory) {
+    function _getApprovers(address _safe, bytes32 hash) internal view returns (address[] memory) {
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+
+        // get a list of owners that have approved this transaction
+        uint256 threshold = safe.getThreshold();
+        address[] memory owners = safe.getOwners();
+        address[] memory approvers = new address[](threshold);
+        uint256 approverIndex;
+        for (uint256 i; i < owners.length; i++) {
+            address owner = owners[i];
+            uint256 approved = safe.approvedHashes(owner, hash);
+            if (approved == 1) {
+                approvers[approverIndex] = owner;
+                approverIndex++;
+                if (approverIndex == threshold) {
+                    return approvers;
+                }
+            }
+        }
+        address[] memory subset = new address[](approverIndex);
+        for (uint256 i; i < approverIndex; i++) {
+            subset[i] = approvers[i];
+        }
+        return subset;
+    }
+
+    /**
+     * @notice Sorts the signatures in ascending order of the signer's address, and removes any duplicates.
+     * @dev see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
+     * @param _signatures Signature data that should be verified.
+     *                    Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash.
+     *                    Can be suffixed with EIP-1271 signatures after threshold*65 bytes.
+     * @param dataHash Hash that is signed.
+     * @param threshold Number of signatures required to approve the transaction.
+     * @param dynamicOffset Offset to add to the `s` value of any EIP-1271 signature.
+     *                      Can be used to accomodate any additional signatures prepended to the array.
+     *                      If prevalidated signatures were prepended, this should be the length of those signatures.
+     */
+    function sortUniqueSignatures(bytes memory _signatures, bytes32 dataHash, uint256 threshold, uint256 dynamicOffset) internal pure returns (bytes memory) {
         bytes memory sorted;
         uint256 count = uint256(_signatures.length / 0x41);
         uint256[] memory addressesAndIndexes = new uint256[](threshold);
@@ -228,6 +271,11 @@ abstract contract MultisigBase is Simulator {
         for (uint256 i; i < count; i++) {
             uint256 index = addressesAndIndexes[i] & 0xffffffff;
             (v, r, s) = signatureSplit(_signatures, index);
+            if (v == 0) {
+                // The `s` value is used by safe as a lookup into the signature bytes.
+                // Increment by the offset so that the lookup location remains correct.
+                s = bytes32(uint256(s) + dynamicOffset);
+            }
             sorted = bytes.concat(sorted, abi.encodePacked(r, s, v));
         }
 
