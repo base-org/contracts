@@ -6,3 +6,4 @@ out/**
 .gitmodules
 
 /.idea/
+.DS_Store
