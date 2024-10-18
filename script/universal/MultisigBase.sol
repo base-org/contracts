@@ -207,29 +207,36 @@ abstract contract MultisigBase is Simulator {
             } else {
                 owner = ecrecover(dataHash, v, r, s);
             }
-            for (uint256 k; k < j; k++) {
-                if (uniqueAddresses[k] == owner) {
-                    continue;
-                }
+
+            // skip duplicate owners
+            uint256 k;
+            for (; k < j; k++) {
+                if (uniqueAddresses[k] == owner) break;
             }
+            if (k < j) continue;
+
             uniqueAddresses[j] = owner;
             addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i); // address in first 160 bits, index in second 96 bits
             j++;
-            if (j == threshold) {
-                break;
-            }
+
+            // we have enough signatures to reach the threshold
+            if (j == threshold) break;
         }
         require(j == threshold, "not enough signatures");
+
         LibSort.sort(addressesAndIndexes);
         for (uint256 i; i < count; i++) {
             uint256 index = addressesAndIndexes[i] & 0xffffffff;
             (v, r, s) = signatureSplit(_signatures, index);
             sorted = bytes.concat(sorted, abi.encodePacked(r, s, v));
         }
+
+        // append the non-static part of the signatures (can contain EIP-1271 signatures if contracts are signers)
+        // if there were any duplicates detected above, they will be safely ignored by Safe's checkNSignatures method
         if (_signatures.length > sorted.length) {
-            // append the non-static part of the signatures (can contain EIP-1271 signatures if contracts are signers)
             sorted = bytes.concat(sorted, Bytes.slice(_signatures, sorted.length, _signatures.length - sorted.length));
         }
+
         return sorted;
     }
 
