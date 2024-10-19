@@ -297,7 +297,8 @@ contract FeeDisburserTest is CommonTest {
     function test_receive_fail_unauthorizedCaller() external {
         vm.expectRevert("FeeDisburser: Only FeeVaults can send ETH to FeeDisburser");
         vm.prank(alice);
-        payable(address(feeDisburser)).call{ value: NON_ZERO_VALUE }("");
+        (bool success, ) = payable(address(feeDisburser)).call{ value: NON_ZERO_VALUE }("");
+        assertTrue(success);
     }
 
     function test_receive_success() external {

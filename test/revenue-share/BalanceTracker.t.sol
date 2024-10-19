@@ -309,7 +309,8 @@ contract BalanceTrackerTest is CommonTest {
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ReceivedFunds(l1StandardBridge, NON_ZERO_VALUE);
 
-        payable(address(balanceTracker)).call{ value: NON_ZERO_VALUE }("");
+        (bool success, ) = payable(address(balanceTracker)).call{ value: NON_ZERO_VALUE }("");
+        assertTrue(success);
 
         assertEq(address(balanceTracker).balance, NON_ZERO_VALUE);
     }

@@ -65,7 +65,7 @@ contract Challenger1of2Test is Test {
                     NONZERO_INTEGER, // _submissionInterval
                     NONZERO_INTEGER, // _l2BlockTime
                     ZERO, // _startingBlockNumber
-                    NONZERO_INTEGER, // _startingTimestamp
+                    ZERO, // _startingTimestamp
                     proposer, // _proposer
                     address(challenger), // _challenger
                     NONZERO_INTEGER // _finalizationPeriodSeconds
