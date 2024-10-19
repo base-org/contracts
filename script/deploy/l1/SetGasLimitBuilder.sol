@@ -6,7 +6,7 @@ import {
     MultisigBuilder,
     IMulticall3,
     IGnosisSafe
-} from "@base-contracts/script/universal/MultisigBuilder.sol";
+} from "../../universal/MultisigBuilder.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 abstract contract SetGasLimitBuilder is MultisigBuilder {

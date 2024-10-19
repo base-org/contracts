@@ -2,7 +2,6 @@ lib/**
 cache/***
 out/**
 
-.env
 .gitmodules
 
 /.idea/

@@ -5,7 +5,7 @@ import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
 import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
-import {LibSort} from "solady/utils/LibSort.sol";
+import {LibSort} from "@solady/utils/LibSort.sol";
 import "./Simulator.sol";
 
 abstract contract MultisigBase is Simulator {
