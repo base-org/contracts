@@ -156,62 +156,10 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         internal
         returns (Vm.AccountAccess[] memory, SimulationPayload memory)
     {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         IGnosisSafe signerSafe = IGnosisSafe(payable(_signerSafe));
+        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
-        bytes32 hash = _getTransactionHash(_safe, data);
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
-
-        // simulate an approveHash, so that signer can verify the data they are signing
-        bytes memory approveHashData = abi.encodeCall(IMulticall3.aggregate3, (toArray(
-            IMulticall3.Call3({
-                target: _safe,
-                allowFailure: false,
-                callData: abi.encodeCall(safe.approveHash, (hash))
-            })
-        )));
-        bytes memory approveHashExec = abi.encodeCall(
-            signerSafe.execTransaction,
-            (
-                address(multicall),
-                0,
-                approveHashData,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                genPrevalidatedSignature(address(multicall))
-            )
-        );
-        calls[0] = IMulticall3.Call3({
-            target: _signerSafe,
-            allowFailure: false,
-            callData: approveHashExec
-        });
-
-        // simulate the final state changes tx, so that signer can verify the final results
-        bytes memory finalExec = abi.encodeCall(
-            safe.execTransaction,
-            (
-                address(multicall),
-                0,
-                data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                genPrevalidatedSignature(_signerSafe)
-            )
-        );
-        calls[1] = IMulticall3.Call3({
-            target: _safe,
-            allowFailure: false,
-            callData: finalExec
-        });
+        IMulticall3.Call3[] memory calls = _simulateForSignerCalls(signerSafe, safe, data);
 
         // For each safe, determine if a nonce override is needed. At this point,
         // no state overrides (i.e. vm.store) have been applied to the Foundry VM,
@@ -260,5 +208,38 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         });
         Vm.AccountAccess[] memory accesses = simulateFromSimPayload(simPayload);
         return (accesses, simPayload);
+    }
+
+    function _simulateForSignerCalls(IGnosisSafe _signerSafe, IGnosisSafe _safe, bytes memory _data)
+        internal view
+        returns (IMulticall3.Call3[] memory)
+    {
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
+        bytes32 hash = _getTransactionHash(address(_safe), _data);
+
+        // simulate an approveHash, so that signer can verify the data they are signing
+        bytes memory approveHashData = abi.encodeCall(IMulticall3.aggregate3, (toArray(
+            IMulticall3.Call3({
+                target: address(_safe),
+                allowFailure: false,
+                callData: abi.encodeCall(_safe.approveHash, (hash))
+            })
+        )));
+        bytes memory approveHashExec = _encodeCall(_signerSafe, approveHashData, genPrevalidatedSignature(address(multicall)));
+        calls[0] = IMulticall3.Call3({
+            target: address(_signerSafe),
+            allowFailure: false,
+            callData: approveHashExec
+        });
+
+        // simulate the final state changes tx, so that signer can verify the final results
+        bytes memory finalExec = _encodeCall(_safe, _data, genPrevalidatedSignature(address(_signerSafe)));
+        calls[1] = IMulticall3.Call3({
+            target: address(_safe),
+            allowFailure: false,
+            callData: finalExec
+        });
+
+        return calls;
     }
 }

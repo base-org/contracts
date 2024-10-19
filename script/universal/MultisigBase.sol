@@ -92,6 +92,39 @@ abstract contract MultisigBase is Simulator {
         });
     }
 
+    function _encodeCall(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
+        return abi.encodeCall(
+            _safe.execTransaction,
+            (
+                address(multicall),
+                0,
+                _data,
+                Enum.Operation.DelegateCall,
+                0,
+                0,
+                0,
+                address(0),
+                payable(address(0)),
+                _signatures
+            )
+        );
+    }
+
+    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
+        return _safe.execTransaction({
+            to: address(multicall),
+            value: 0,
+            data: _data,
+            operation: Enum.Operation.DelegateCall,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: payable(address(0)),
+            signatures: _signatures
+        });
+    }
+
     function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         returns (Vm.AccountAccess[] memory, SimulationPayload memory)
@@ -101,39 +134,15 @@ abstract contract MultisigBase is Simulator {
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = prepareSignatures(_safe, hash, _signatures);
 
+        bytes memory simData = _encodeCall(safe, data, _signatures);
         logSimulationLink({
             _to: _safe,
             _from: msg.sender,
-            _data: abi.encodeCall(
-                safe.execTransaction,
-                (
-                    address(multicall),
-                    0,
-                    data,
-                    Enum.Operation.DelegateCall,
-                    0,
-                    0,
-                    0,
-                    address(0),
-                    payable(address(0)),
-                    _signatures
-                )
-            )
+            _data: simData
         });
 
         vm.startStateDiffRecording();
-        bool success = safe.execTransaction({
-            to: address(multicall),
-            value: 0,
-            data: data,
-            operation: Enum.Operation.DelegateCall,
-            safeTxGas: 0,
-            baseGas: 0,
-            gasPrice: 0,
-            gasToken: address(0),
-            refundReceiver: payable(address(0)),
-            signatures: _signatures
-        });
+        bool success = _execTransaction(safe, data, _signatures);
         Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
         require(success, "MultisigBase::_executeTransaction: Transaction failed");
         require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
@@ -143,18 +152,7 @@ abstract contract MultisigBase is Simulator {
         SimulationPayload memory simPayload = SimulationPayload({
             from: msg.sender,
             to: address(safe),
-            data: abi.encodeCall(safe.execTransaction, (
-                address(multicall),
-                0,
-                data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                _signatures
-            )),
+            data: simData,
             stateOverrides: new SimulationStateOverride[](0)
         });
         return (accesses, simPayload);
@@ -241,15 +239,7 @@ abstract contract MultisigBase is Simulator {
         uint256 j;
         for (uint256 i; i < count; i++) {
             (v, r, s) = signatureSplit(_signatures, i);
-            address owner;
-            if (v <= 1) {
-                owner = address(uint160(uint256(r)));
-            } else if (v > 30) {
-                owner =
-                    ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
-            } else {
-                owner = ecrecover(dataHash, v, r, s);
-            }
+            address owner = extractOwner(dataHash, r, s, v);
 
             // skip duplicate owners
             uint256 k;
@@ -281,11 +271,26 @@ abstract contract MultisigBase is Simulator {
 
         // append the non-static part of the signatures (can contain EIP-1271 signatures if contracts are signers)
         // if there were any duplicates detected above, they will be safely ignored by Safe's checkNSignatures method
-        if (_signatures.length > sorted.length) {
-            sorted = bytes.concat(sorted, Bytes.slice(_signatures, sorted.length, _signatures.length - sorted.length));
-        }
+        sorted = appendRemainingBytes(sorted, _signatures);
 
         return sorted;
+    }
+
+    function appendRemainingBytes(bytes memory a1, bytes memory a2) internal pure returns (bytes memory) {
+        if (a2.length > a1.length) {
+            a1 = bytes.concat(a1, Bytes.slice(a2, a1.length, a2.length - a1.length));
+        }
+        return a1;
+    }
+
+    function extractOwner(bytes32 dataHash, bytes32 r, bytes32 s, uint8 v) internal pure returns (address) {
+        if (v <= 1) {
+            return address(uint160(uint256(r)));
+        }
+        if (v > 30) {
+            return ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
+        }
+        return ecrecover(dataHash, v, r, s);
     }
 
     // see https://github.com/safe-global/safe-contracts/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/common/SignatureDecoder.sol
