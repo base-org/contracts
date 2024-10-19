@@ -2,7 +2,7 @@ lib/**
 cache/***
 out/**
 
-.env
 .gitmodules
 
 /.idea/
+.DS_Store

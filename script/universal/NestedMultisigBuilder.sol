@@ -6,8 +6,6 @@ import "./MultisigBase.sol";
 import { console } from "forge-std/console.sol";
 import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
 
-// import { IGnosisSafe, Enum } from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
-
 /**
  * @title NestedMultisigBuilder
  * @notice Modeled from Optimism's SafeBuilder, but built for nested safes (Safes where the signers are other Safes).
