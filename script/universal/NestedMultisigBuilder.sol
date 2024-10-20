@@ -152,33 +152,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         IMulticall3.Call3[] memory calls = _simulateForSignerCalls(_signerSafe, _safe, data);
 
-        // For each safe, determine if a nonce override is needed. At this point,
-        // no state overrides (i.e. vm.store) have been applied to the Foundry VM,
-        // meaning the nonce is not yet overriden. Therefore these calls to
-        // `safe.nonce()` will correctly return the current nonce of the safe.
-        bool safeNonceOverride = _getNonce(_safe) != _safe.nonce();
-        bool signerSafeNonceOverride = _getNonce(_signerSafe) != _signerSafe.nonce();
-
         // Now define the state overrides for the simulation.
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
-        // The state change simulation sets the multisig threshold to 1 in the
-        // simulation to enable an approver to see what the final state change
-        // will look like upon transaction execution. The multisig threshold
-        // will not actually change in the transaction execution.
-        if (safeNonceOverride) {
-            overrides[0] = overrideSafeThresholdAndNonce(address(_safe), _getNonce(_safe));
-        } else {
-            overrides[0] = overrideSafeThreshold(address(_safe));
-        }
-        // Set the signer safe threshold to 1, and set the owner to multicall.
-        // This is a little hacky; reason is to simulate both the approve hash
-        // and the final tx in a single Tenderly tx, using multicall. Given an
-        // EOA cannot DELEGATECALL, multicall needs to own the signer safe.
-        if (signerSafeNonceOverride) {
-            overrides[1] = overrideSafeThresholdOwnerAndNonce(address(_signerSafe), MULTICALL3_ADDRESS, _getNonce(_signerSafe));
-        } else {
-            overrides[1] = overrideSafeThresholdAndOwner(address(_signerSafe), MULTICALL3_ADDRESS);
-        }
+        SimulationStateOverride[] memory overrides = _overrides(_signerSafe, _safe);
 
         bytes memory txData = abi.encodeCall(IMulticall3.aggregate3, (calls));
         console.log("---\nSimulation link:");
@@ -232,5 +207,16 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         });
 
         return calls;
+    }
+
+    function _overrides(IGnosisSafe _signerSafe, IGnosisSafe _safe) internal view returns (SimulationStateOverride[] memory) {
+        SimulationStateOverride[] memory simOverrides = _simulationOverrides();
+        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2 + simOverrides.length);
+        overrides[0] = _safeOverrides(_signerSafe, MULTICALL3_ADDRESS);
+        overrides[1] = _safeOverrides(_safe, msg.sender);
+        for (uint256 i = 0; i < simOverrides.length; i++) {
+            overrides[i + 2] = simOverrides[i];
+        }
+        return overrides;
     }
 }

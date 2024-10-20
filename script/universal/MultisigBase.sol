@@ -328,4 +328,17 @@ abstract contract MultisigBase is Simulator {
         calls[0] = call;
         return calls;
     }
+
+    // The state change simulation can set the threshold, owner address and/or nonce.
+    // This allows simulation of the final transaction by overriding the threshold to 1.
+    // State changes reflected in the simulation as a result of these overrides will
+    // not be reflected in the prod execution.
+    function _safeOverrides(IGnosisSafe _safe, address _owner) internal virtual view returns (SimulationStateOverride memory) {
+        uint256 _nonce = _getNonce(_safe);
+        return overrideSafeThresholdOwnerAndNonce(address(_safe), _owner, _nonce);
+    }
+
+    // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
+    // By default, an empty (no-op) override is returned.
+    function _simulationOverrides() internal virtual view returns (SimulationStateOverride[] memory overrides_) {}
 }

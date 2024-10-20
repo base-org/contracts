@@ -142,7 +142,7 @@ abstract contract MultisigBuilder is MultisigBase {
     {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        SimulationStateOverride[] memory overrides = _setOverrides(_safe);
+        SimulationStateOverride[] memory overrides = _overrides(_safe);
 
         bytes memory txData = _execTransationCalldata(_safe, data, genPrevalidatedSignature(msg.sender));
         logSimulationLink({
@@ -164,35 +164,12 @@ abstract contract MultisigBuilder is MultisigBase {
         return (accesses, simPayload);
     }
 
-    // The state change simulation can set the threshold, owner address and/or nonce.
-    // This allows a non-signing owner to simulate the transaction
-    // State changes reflected in the simulation as a result of these overrides
-    // will not be reflected in the prod execution.
-    // This particular implementation can be overwritten by an inheriting script. The
-    // default logic is vestigial for backwards compatibility.
-    function _addOverrides(IGnosisSafe _safe) internal virtual view returns (SimulationStateOverride memory) {
-        uint256 _nonce = _getNonce(_safe);
-        return overrideSafeThresholdAndNonce(address(_safe), _nonce);
-    }
-
-    // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
-    // By default, an empty (no-op) override is returned
-    function _addGenericOverrides() internal virtual view returns (SimulationStateOverride memory override_) {}
-
-    function _addMultipleGenericOverrides()
-        internal
-        view
-        virtual
-        returns (SimulationStateOverride[] memory overrides_)
-    {}
-
-    function _setOverrides(IGnosisSafe _safe) internal virtual returns (SimulationStateOverride[] memory) {
-        SimulationStateOverride[] memory extraOverrides = _addMultipleGenericOverrides();
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2 + extraOverrides.length);
-        overrides[0] = _addOverrides(_safe);
-        overrides[1] = _addGenericOverrides();
-        for (uint256 i = 0; i < extraOverrides.length; i++) {
-            overrides[i + 2] = extraOverrides[i];
+    function _overrides(IGnosisSafe _safe) internal returns (SimulationStateOverride[] memory) {
+        SimulationStateOverride[] memory simOverrides = _simulationOverrides();
+        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](1 + simOverrides.length);
+        overrides[0] = _safeOverrides(_safe, msg.sender);
+        for (uint256 i = 0; i < simOverrides.length; i++) {
+            overrides[i + 1] = simOverrides[i];
         }
         return overrides;
     }

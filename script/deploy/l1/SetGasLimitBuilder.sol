@@ -55,19 +55,16 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
         nonce = safe.nonce() + _nonceOffset();
     }
 
-    function _addOverrides(IGnosisSafe _safe) internal view override returns (SimulationStateOverride memory) {
-        uint256 _nonce = _getNonce(_safe);
-        return overrideSafeThresholdOwnerAndNonce(address(_safe), DEFAULT_SENDER, _nonce);
-    }
-
     // We need to expect that the gas limit will have been updated previously in our simulation
     // Use this override to specifically set the gas limit to the expected update value.
-    function _addGenericOverrides() internal view override returns (SimulationStateOverride memory) {
-        SimulationStorageOverride[] memory _stateOverrides = new SimulationStorageOverride[](1);
-        _stateOverrides[0] = SimulationStorageOverride({
+    function _simulationOverrides() internal view override returns (SimulationStateOverride[] memory) {
+        SimulationStateOverride[] memory _stateOverrides = new SimulationStateOverride[](1);
+        SimulationStorageOverride[] memory _storageOverrides = new SimulationStorageOverride[](1);
+        _storageOverrides[0] = SimulationStorageOverride({
             key: 0x0000000000000000000000000000000000000000000000000000000000000068, // slot of gas limit
             value: bytes32(uint(_fromGasLimit()))
         });
-        return SimulationStateOverride({contractAddress: L1_SYSTEM_CONFIG, overrides: _stateOverrides});
+        _stateOverrides[0] = SimulationStateOverride({contractAddress: L1_SYSTEM_CONFIG, overrides: _storageOverrides});
+        return _stateOverrides;
     }
 }

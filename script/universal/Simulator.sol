@@ -48,32 +48,23 @@ abstract contract Simulator is CommonBase {
         return accesses;
     }
 
-    function overrideSafeThreshold(address _safe) public pure returns (SimulationStateOverride memory) {
-        return addThresholdOverride(SimulationStateOverride({
+    function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
+        SimulationStateOverride memory state = SimulationStateOverride({
             contractAddress: _safe,
             overrides: new SimulationStorageOverride[](0)
-        }));
-    }
-
-    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        SimulationStateOverride memory state = overrideSafeThreshold(_safe);
+        });
+        state = addThresholdOverride(_safe, state);
+        state = addOwnerOverride(_safe, state, _owner);
         state = addNonceOverride(_safe, state, _nonce);
         return state;
     }
 
-    function overrideSafeThresholdAndOwner(address _safe, address _owner) public pure returns (SimulationStateOverride memory) {
-        SimulationStateOverride memory state = overrideSafeThreshold(_safe);
-        state = addOwnerOverride(state, _owner);
-        return state;
-    }
+    function addThresholdOverride(address _safe, SimulationStateOverride memory _state) internal view returns (SimulationStateOverride memory) {
+        // get the threshold and check if we need to override it
+        (, bytes memory thresholdBytes) = _safe.staticcall(abi.encodeWithSignature("getThreshold()"));
+        uint256 threshold = abi.decode(thresholdBytes, (uint256));
+        if (threshold == 1) return _state;
 
-    function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        SimulationStateOverride memory state = overrideSafeThresholdAndOwner(_safe, _owner);
-        state = addNonceOverride(_safe, state, _nonce);
-        return state;
-    }
-
-    function addThresholdOverride(SimulationStateOverride memory _state) internal pure returns (SimulationStateOverride memory) {
         // set the threshold (slot 4) to 1
         return addOverride(_state, SimulationStorageOverride({
             key: bytes32(uint256(0x4)),
@@ -81,7 +72,14 @@ abstract contract Simulator is CommonBase {
         }));
     }
 
-    function addOwnerOverride(SimulationStateOverride memory _state, address _owner) internal pure returns (SimulationStateOverride memory) {
+    function addOwnerOverride(address _safe, SimulationStateOverride memory _state, address _owner) internal view returns (SimulationStateOverride memory) {
+        // get the owners and check if _owner is an owner
+        (, bytes memory ownersBytes) = _safe.staticcall(abi.encodeWithSignature("getOwners()"));
+        address[] memory owners = abi.decode(ownersBytes, (address[]));
+        for (uint256 i; i < owners.length; i++) {
+            if (owners[i] == _owner) return _state;
+        }
+
         // set the ownerCount (slot 3) to 1
         _state = addOverride(_state, SimulationStorageOverride({
             key: bytes32(uint256(0x3)),
@@ -103,6 +101,7 @@ abstract contract Simulator is CommonBase {
         (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
         uint256 nonce = abi.decode(nonceBytes, (uint256));
         if (nonce == _nonce) return _state;
+
         // set the nonce (slot 5) to the desired value
         return addOverride(_state, SimulationStorageOverride({
             key: bytes32(uint256(0x5)),
