@@ -13,15 +13,6 @@ abstract contract MultisigBase is Simulator {
 
     event DataToSign(bytes);
 
-    function _getTransactionHash(IGnosisSafe _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
-        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
-        return _getTransactionHash(_safe, data);
-    }
-
-    function _getTransactionHash(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes32) {
-        return keccak256(_encodeTransactionData(_safe, _data));
-    }
-
     // Subclasses that use nested safes should return `false` to force use of the
     // explicit SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS} env var.
     function _readFrom_SAFE_NONCE() internal pure virtual returns (bool);
@@ -66,21 +57,6 @@ abstract contract MultisigBase is Simulator {
         }
     }
 
-    function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
-        return _safe.encodeTransactionData({
-            to: MULTICALL3_ADDRESS,
-            value: 0,
-            data: _data,
-            operation: Enum.Operation.DelegateCall,
-            safeTxGas: 0,
-            baseGas: 0,
-            gasPrice: 0,
-            gasToken: address(0),
-            refundReceiver: address(0),
-            _nonce: _getNonce(_safe)
-        });
-    }
-
     function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
@@ -117,39 +93,6 @@ abstract contract MultisigBase is Simulator {
         });
     }
 
-    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
-        return abi.encodeCall(
-            _safe.execTransaction,
-            (
-                MULTICALL3_ADDRESS,
-                0,
-                _data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                _signatures
-            )
-        );
-    }
-
-    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
-        return _safe.execTransaction({
-            to: MULTICALL3_ADDRESS,
-            value: 0,
-            data: _data,
-            operation: Enum.Operation.DelegateCall,
-            safeTxGas: 0,
-            baseGas: 0,
-            gasPrice: 0,
-            gasToken: address(0),
-            refundReceiver: payable(address(0)),
-            signatures: _signatures
-        });
-    }
-
     function _executeTransaction(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         returns (Vm.AccountAccess[] memory, SimulationPayload memory)
@@ -182,10 +125,61 @@ abstract contract MultisigBase is Simulator {
         return (accesses, simPayload);
     }
 
-    function toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = call;
-        return calls;
+    function _getTransactionHash(IGnosisSafe _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
+        return _getTransactionHash(_safe, data);
+    }
+
+    function _getTransactionHash(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes32) {
+        return keccak256(_encodeTransactionData(_safe, _data));
+    }
+
+    function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
+        return _safe.encodeTransactionData({
+            to: MULTICALL3_ADDRESS,
+            value: 0,
+            data: _data,
+            operation: Enum.Operation.DelegateCall,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: address(0),
+            _nonce: _getNonce(_safe)
+        });
+    }
+
+    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
+        return abi.encodeCall(
+            _safe.execTransaction,
+            (
+                MULTICALL3_ADDRESS,
+                0,
+                _data,
+                Enum.Operation.DelegateCall,
+                0,
+                0,
+                0,
+                address(0),
+                payable(address(0)),
+                _signatures
+            )
+        );
+    }
+
+    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
+        return _safe.execTransaction({
+            to: MULTICALL3_ADDRESS,
+            value: 0,
+            data: _data,
+            operation: Enum.Operation.DelegateCall,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: payable(address(0)),
+            signatures: _signatures
+        });
     }
 
     function prepareSignatures(IGnosisSafe _safe, bytes32 hash, bytes memory _signatures) internal view returns (bytes memory) {
@@ -298,13 +292,6 @@ abstract contract MultisigBase is Simulator {
         return sorted;
     }
 
-    function appendRemainingBytes(bytes memory a1, bytes memory a2) internal pure returns (bytes memory) {
-        if (a2.length > a1.length) {
-            a1 = bytes.concat(a1, Bytes.slice(a2, a1.length, a2.length - a1.length));
-        }
-        return a1;
-    }
-
     function extractOwner(bytes32 dataHash, bytes32 r, bytes32 s, uint8 v) internal pure returns (address) {
         if (v <= 1) {
             return address(uint160(uint256(r)));
@@ -327,5 +314,18 @@ abstract contract MultisigBase is Simulator {
             s := mload(add(signatures, add(signaturePos, 0x40)))
             v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
         }
+    }
+
+    function appendRemainingBytes(bytes memory a1, bytes memory a2) internal pure returns (bytes memory) {
+        if (a2.length > a1.length) {
+            a1 = bytes.concat(a1, Bytes.slice(a2, a1.length, a2.length - a1.length));
+        }
+        return a1;
+    }
+
+    function toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = call;
+        return calls;
     }
 }
