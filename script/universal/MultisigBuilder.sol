@@ -146,7 +146,7 @@ abstract contract MultisigBuilder is MultisigBase {
 
         SimulationStateOverride[] memory overrides = _overrides(_safe);
 
-        bytes memory txData = _execTransationCalldata(_safe, data, genPrevalidatedSignature(msg.sender));
+        bytes memory txData = _execTransationCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
         logSimulationLink({
             _to: address(_safe),
             _data: txData,

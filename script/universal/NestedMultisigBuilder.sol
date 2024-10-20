@@ -204,7 +204,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 callData: abi.encodeCall(_safe.approveHash, (hash))
             })
         )));
-        bytes memory approveHashExec = _execTransationCalldata(_signerSafe, approveHashData, genPrevalidatedSignature(MULTICALL3_ADDRESS));
+        bytes memory approveHashExec = _execTransationCalldata(_signerSafe, approveHashData, Signatures.genPrevalidatedSignature(MULTICALL3_ADDRESS));
         calls[0] = IMulticall3.Call3({
             target: address(_signerSafe),
             allowFailure: false,
@@ -212,7 +212,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         });
 
         // simulate the final state changes tx, so that signer can verify the final results
-        bytes memory finalExec = _execTransationCalldata(_safe, _data, genPrevalidatedSignature(address(_signerSafe)));
+        bytes memory finalExec = _execTransationCalldata(_safe, _data, Signatures.genPrevalidatedSignature(address(_signerSafe)));
         calls[1] = IMulticall3.Call3({
             target: address(_safe),
             allowFailure: false,
