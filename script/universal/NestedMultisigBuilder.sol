@@ -82,10 +82,23 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         _postCheck();
 
         // Restore the original nonce.
-        vm.store(address(nestedSafe), SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
-        vm.store(address(_signerSafe), SAFE_NONCE_SLOT, bytes32(uint256(originalSignerNonce)));
+        vm.store(address(nestedSafe), SAFE_NONCE_SLOT, bytes32(originalNonce));
+        vm.store(address(_signerSafe), SAFE_NONCE_SLOT, bytes32(originalSignerNonce));
 
         _printDataToSign(_signerSafe, toArray(call));
+    }
+
+    /**
+     * Step 1.1 (optional)
+     * ======
+     * Verify the signatures generated from step 1 are valid.
+     * This allow transactions to be pre-signed and stored safely before execution.
+     */
+    function verify(IGnosisSafe _signerSafe, bytes memory _signatures) public view {
+        IGnosisSafe nestedSafe = IGnosisSafe(_ownerSafe());
+        IMulticall3.Call3[] memory nestedCalls = _buildCalls();
+        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
+        _checkSignatures(_signerSafe, toArray(call), _signatures);
     }
 
     /**
