@@ -183,12 +183,6 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = call;
-        return calls;
-    }
-
     // The state change simulation can set the threshold, owner address and/or nonce.
     // This allows simulation of the final transaction by overriding the threshold to 1.
     // State changes reflected in the simulation as a result of these overrides will

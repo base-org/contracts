@@ -85,7 +85,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         vm.store(address(nestedSafe), SAFE_NONCE_SLOT, bytes32(originalNonce));
         vm.store(address(_signerSafe), SAFE_NONCE_SLOT, bytes32(originalSignerNonce));
 
-        _printDataToSign(_signerSafe, toArray(call));
+        _printDataToSign(_signerSafe, _toArray(call));
     }
 
     /**
@@ -98,7 +98,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IGnosisSafe nestedSafe = IGnosisSafe(_ownerSafe());
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
-        _checkSignatures(_signerSafe, toArray(call), _signatures);
+        _checkSignatures(_signerSafe, _toArray(call), _signatures);
     }
 
     /**
@@ -114,7 +114,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
 
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(_signerSafe, _toArray(call), _signatures);
         vm.stopBroadcast();
 
         _postApprove(accesses, simPayload);
@@ -197,7 +197,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         bytes32 hash = _getTransactionHash(_safe, _data);
 
         // simulate an approveHash, so that signer can verify the data they are signing
-        bytes memory approveHashData = abi.encodeCall(IMulticall3.aggregate3, (toArray(
+        bytes memory approveHashData = abi.encodeCall(IMulticall3.aggregate3, (_toArray(
             IMulticall3.Call3({
                 target: address(_safe),
                 allowFailure: false,
@@ -231,5 +231,11 @@ abstract contract NestedMultisigBuilder is MultisigBase {
             overrides[i + 2] = simOverrides[i];
         }
         return overrides;
+    }
+
+    function _toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
+        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
+        calls[0] = call;
+        return calls;
     }
 }
