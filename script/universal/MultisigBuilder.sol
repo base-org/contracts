@@ -19,19 +19,31 @@ abstract contract MultisigBuilder is MultisigBase {
      */
 
     /**
-     * @notice Follow up assertions to ensure that the script ran to completion.
+     * @notice Returns the safe address to execute the transaction from
      */
-    function _postCheck(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual;
+    function _ownerSafe() internal virtual view returns (address);
 
     /**
-     * @notice Creates the calldata
+     * @notice Creates the calldata for both signatures (`sign`) and execution (`run`)
      */
     function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
 
     /**
-     * @notice Returns the safe address to execute the transaction from
+     * @notice Follow up assertions to ensure that the script ran to completion.
      */
-    function _ownerSafe() internal virtual view returns (address);
+    function _postCheck() internal virtual;
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `sign` call.
+     */
+    function _postSign(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    }
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `run` call.
+     */
+    function _postRun(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    }
 
     /**
      * -----------------------------------------------------------
@@ -59,7 +71,8 @@ abstract contract MultisigBuilder is MultisigBase {
 
         IMulticall3.Call3[] memory calls = _buildCalls();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(safe, calls);
-        _postCheck(accesses, simPayload);
+        _postSign(accesses, simPayload);
+        _postCheck();
 
         // Restore the original nonce.
         vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
@@ -87,13 +100,18 @@ abstract contract MultisigBuilder is MultisigBase {
      * ======
      * Simulate the transaction. This method should be called by the final member of the multisig
      * that will execute the transaction. Signatures from step 1 are required.
+     *
+     * Differs from `run` in that you can override the safe nonce for simulation purposes.
      */
     function simulate(bytes memory _signatures) public {
         IGnosisSafe safe = IGnosisSafe(_ownerSafe());
         uint256 _nonce = _getNonce(safe);
         vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(uint256(_nonce)));
+
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(safe, _buildCalls(), _signatures);
-        _postCheck(accesses, simPayload);
+
+        _postRun(accesses, simPayload);
+        _postCheck();
     }
 
     /**
@@ -110,7 +128,12 @@ abstract contract MultisigBuilder is MultisigBase {
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
         vm.stopBroadcast();
 
-        _postCheck(accesses, simPayload);
+        _postRun(accesses, simPayload);
+        _postCheck();
+    }
+
+    function _readFrom_SAFE_NONCE() internal pure override returns (bool) {
+        return true;
     }
 
     function _simulateForSigner(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls)

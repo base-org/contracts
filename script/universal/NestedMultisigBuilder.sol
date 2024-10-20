@@ -18,19 +18,38 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      */
 
     /**
-     * @notice Follow up assertions to ensure that the script ran to completion
+     * @notice Returns the nested safe address to execute the final transaction from
      */
-    function _postCheck(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual;
+    function _ownerSafe() internal virtual view returns (address);
 
     /**
-     * @notice Creates the calldata
+     * @notice Creates the calldata for both signatures (`sign`) and execution (`run`)
      */
     function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
 
     /**
-     * @notice Returns the nested safe address to execute the final transaction from
+     * @notice Follow up assertions to ensure that the script ran to completion.
+     * @dev Called after `sign` and `run`, but not `approve`.
      */
-    function _ownerSafe() internal virtual view returns (address);
+    function _postCheck() internal virtual;
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `sign` call.
+     */
+    function _postSign(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    }
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `approve` call.
+     */
+    function _postApprove(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    }
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `run` call.
+     */
+    function _postRun(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    }
 
     /**
      * -----------------------------------------------------------
@@ -63,7 +82,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         console.logBytes32(hash);
 
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafe, nestedCalls);
-        _postCheck(accesses, simPayload);
+        _postSign(accesses, simPayload);
+        _postCheck();
 
         // Restore the original nonce.
         vm.store(address(nestedSafe), SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
@@ -87,6 +107,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
         vm.stopBroadcast();
+
+        _postApprove(accesses, simPayload);
     }
 
     /**
@@ -106,7 +128,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafe, nestedCalls, signatures);
         vm.stopBroadcast();
 
-        _postCheck(accesses, simPayload);
+        _postRun(accesses, simPayload);
+        _postCheck();
     }
 
     function _readFrom_SAFE_NONCE() internal pure override returns (bool) {
