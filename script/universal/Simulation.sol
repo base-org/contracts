@@ -2,38 +2,41 @@
 pragma solidity ^0.8.15;
 
 import { console } from "forge-std/console.sol";
-import { CommonBase } from "forge-std/Base.sol";
 import { Vm } from "forge-std/Vm.sol";
+import { IGnosisSafe } from "./IGnosisSafe.sol";
 
-abstract contract Simulator is CommonBase {
-    struct SimulationStateOverride {
+library Simulation {
+    address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
+    Vm internal constant vm = Vm(VM_ADDRESS);
+
+    struct StateOverride {
         address contractAddress;
-        SimulationStorageOverride[] overrides;
+        StorageOverride[] overrides;
     }
 
-    struct SimulationStorageOverride {
+    struct StorageOverride {
         bytes32 key;
         bytes32 value;
     }
 
-    struct SimulationPayload {
+    struct Payload {
         address from;
         address to;
         bytes data;
-        SimulationStateOverride[] stateOverrides;
+        StateOverride[] stateOverrides;
     }
 
-    function simulateFromSimPayload(SimulationPayload memory simPayload) internal returns (Vm.AccountAccess[] memory) {
+    function simulateFromSimPayload(Payload memory simPayload) internal returns (Vm.AccountAccess[] memory) {
         require(simPayload.from != address(0), "Simulator::simulateFromSimPayload: from address cannot be zero address");
         require(simPayload.to != address(0), "Simulator::simulateFromSimPayload: to address cannot be zero address");
 
         // Apply state overrides.
-        SimulationStateOverride[] memory stateOverrides = simPayload.stateOverrides;
+        StateOverride[] memory stateOverrides = simPayload.stateOverrides;
         for (uint256 i; i < stateOverrides.length; i++) {
-            SimulationStateOverride memory stateOverride = stateOverrides[i];
-            SimulationStorageOverride[] memory storageOverrides = stateOverride.overrides;
+            StateOverride memory stateOverride = stateOverrides[i];
+            StorageOverride[] memory storageOverrides = stateOverride.overrides;
             for (uint256 j; j < storageOverrides.length; j++) {
-                SimulationStorageOverride memory storageOverride = storageOverrides[j];
+                StorageOverride memory storageOverride = storageOverrides[j];
                 vm.store(stateOverride.contractAddress, storageOverride.key, storageOverride.value);
             }
         }
@@ -48,99 +51,86 @@ abstract contract Simulator is CommonBase {
         return accesses;
     }
 
-    function overrideSafeThreshold(address _safe) public pure returns (SimulationStateOverride memory) {
-        return addThresholdOverride(SimulationStateOverride({
-            contractAddress: _safe,
-            overrides: new SimulationStorageOverride[](0)
-        }));
-    }
-
-    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        SimulationStateOverride memory state = overrideSafeThreshold(_safe);
+    function overrideSafeThresholdOwnerAndNonce(IGnosisSafe _safe, address _owner, uint256 _nonce) public view returns (StateOverride memory) {
+        StateOverride memory state = StateOverride({
+            contractAddress: address(_safe),
+            overrides: new StorageOverride[](0)
+        });
+        state = addThresholdOverride(_safe, state);
+        state = addOwnerOverride(_safe, state, _owner);
         state = addNonceOverride(_safe, state, _nonce);
         return state;
     }
 
-    function overrideSafeThresholdAndOwner(address _safe, address _owner) public pure returns (SimulationStateOverride memory) {
-        SimulationStateOverride memory state = overrideSafeThreshold(_safe);
-        state = addOwnerOverride(state, _owner);
-        return state;
-    }
+    function addThresholdOverride(IGnosisSafe _safe, StateOverride memory _state) internal view returns (StateOverride memory) {
+        // get the threshold and check if we need to override it
+        if (_safe.getThreshold() == 1) return _state;
 
-    function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (SimulationStateOverride memory) {
-        SimulationStateOverride memory state = overrideSafeThresholdAndOwner(_safe, _owner);
-        state = addNonceOverride(_safe, state, _nonce);
-        return state;
-    }
-
-    function addThresholdOverride(SimulationStateOverride memory _state) internal pure returns (SimulationStateOverride memory) {
         // set the threshold (slot 4) to 1
-        return addOverride(_state, SimulationStorageOverride({
+        return addOverride(_state, StorageOverride({
             key: bytes32(uint256(0x4)),
             value: bytes32(uint256(0x1))
         }));
     }
 
-    function addOwnerOverride(SimulationStateOverride memory _state, address _owner) internal pure returns (SimulationStateOverride memory) {
+    function addOwnerOverride(IGnosisSafe _safe, StateOverride memory _state, address _owner) internal view returns (StateOverride memory) {
+        // get the owners and check if _owner is an owner
+        address[] memory owners = _safe.getOwners();
+        for (uint256 i; i < owners.length; i++) {
+            if (owners[i] == _owner) return _state;
+        }
+
         // set the ownerCount (slot 3) to 1
-        _state = addOverride(_state, SimulationStorageOverride({
+        _state = addOverride(_state, StorageOverride({
             key: bytes32(uint256(0x3)),
             value: bytes32(uint256(0x1))
         }));
         // override the owner mapping (slot 2), which requires two key/value pairs: { 0x1: _owner, _owner: 0x1 }
-        _state = addOverride(_state, SimulationStorageOverride({
+        _state = addOverride(_state, StorageOverride({
             key: bytes32(0xe90b7bceb6e7df5418fb78d8ee546e97c83a08bbccc01a0644d599ccd2a7c2e0), // keccak256(1 || 2)
             value: bytes32(uint256(uint160(_owner)))
         }));
-        return addOverride(_state, SimulationStorageOverride({
+        return addOverride(_state, StorageOverride({
             key: keccak256(abi.encode(_owner, uint256(2))),
             value: bytes32(uint256(0x1))
         }));
     }
 
-    function addNonceOverride(address _safe, SimulationStateOverride memory _state, uint256 _nonce) internal view returns (SimulationStateOverride memory) {
+    function addNonceOverride(IGnosisSafe _safe, StateOverride memory _state, uint256 _nonce) internal view returns (StateOverride memory) {
         // get the nonce and check if we need to override it
-        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
-        uint256 nonce = abi.decode(nonceBytes, (uint256));
-        if (nonce == _nonce) return _state;
+        if (_safe.nonce() == _nonce) return _state;
+
         // set the nonce (slot 5) to the desired value
-        return addOverride(_state, SimulationStorageOverride({
+        return addOverride(_state, StorageOverride({
             key: bytes32(uint256(0x5)),
             value: bytes32(_nonce)
         }));
     }
 
-    function addOverride(SimulationStateOverride memory _state, SimulationStorageOverride memory _override) internal pure returns (SimulationStateOverride memory) {
-        SimulationStorageOverride[] memory overrides = new SimulationStorageOverride[](_state.overrides.length + 1);
+    function addOverride(StateOverride memory _state, StorageOverride memory _override) internal pure returns (StateOverride memory) {
+        StorageOverride[] memory overrides = new StorageOverride[](_state.overrides.length + 1);
         for (uint256 i; i < _state.overrides.length; i++) {
             overrides[i] = _state.overrides[i];
         }
         overrides[_state.overrides.length] = _override;
-        return SimulationStateOverride({
+        return StateOverride({
             contractAddress: _state.contractAddress,
             overrides: overrides
         });
     }
 
     function logSimulationLink(address _to, bytes memory _data, address _from) public view {
-        logSimulationLink(_to, _data, _from, new SimulationStateOverride[](0));
+        logSimulationLink(_to, _data, _from, new StateOverride[](0));
     }
 
-    function logSimulationLink(address _to, bytes memory _data, address _from, SimulationStateOverride[] memory _overrides) public view {
-        (, bytes memory projData) = VM_ADDRESS.staticcall(
-            abi.encodeWithSignature("envOr(string,string)", "TENDERLY_PROJECT", "TENDERLY_PROJECT")
-        );
-        string memory proj = abi.decode(projData, (string));
-
-        (, bytes memory userData) = VM_ADDRESS.staticcall(
-            abi.encodeWithSignature("envOr(string,string)", "TENDERLY_USERNAME", "TENDERLY_USERNAME")
-        );
-        string memory username = abi.decode(userData, (string));
+    function logSimulationLink(address _to, bytes memory _data, address _from, StateOverride[] memory _overrides) public view {
+        string memory proj = vm.envOr("TENDERLY_PROJECT", string("TENDERLY_PROJECT"));
+        string memory username = vm.envOr("TENDERLY_USERNAME", string("TENDERLY_USERNAME"));
 
         // the following characters are url encoded: []{}
         string memory stateOverrides = "%5B";
         for (uint256 i; i < _overrides.length; i++) {
-            SimulationStateOverride memory _override = _overrides[i];
+            StateOverride memory _override = _overrides[i];
             if (i > 0) stateOverrides = string.concat(stateOverrides, ",");
             stateOverrides = string.concat(
                 stateOverrides,

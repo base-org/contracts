@@ -1,69 +1,72 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import {Vm} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
+import {CommonBase} from "forge-std/Base.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
-import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
-import {LibSort} from "@solady/utils/LibSort.sol";
-import "./Simulator.sol";
+import {Simulation} from "./Simulation.sol";
+import {Signatures} from "./Signatures.sol";
 
-abstract contract MultisigBase is Simulator {
-    IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
+abstract contract MultisigBase is CommonBase {
     bytes32 internal constant SAFE_NONCE_SLOT = bytes32(uint256(5));
 
-    function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
-        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
-        return _getTransactionHash(_safe, data);
-    }
+    event DataToSign(bytes);
 
-    function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
-        return keccak256(_encodeTransactionData(_safe, _data));
-    }
+    // Subclasses that use nested safes should return `false` to force use of the
+    // explicit SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS} env var.
+    function _readFrom_SAFE_NONCE() internal pure virtual returns (bool);
 
-    // Virtual method which can be overwritten
-    // Default logic here is vestigial for backwards compatibility
-    // IMPORTANT: this method is used in the sign, simulate, AND execution contexts
-    // If you override it, ensure that the behavior is correct for all contexts
-    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before safe.nonce is executed),
-    // you should explicitly set the nonce value with an env var.
-    // Overwriting this method with safe.nonce + 1 will cause issues upon execution because the transaction
-    // hash will differ from the one signed.
+    // Get the nonce to use for the given safe, for signing and simulations.
+    //
+    // If you override it, ensure that the behavior is correct for all contexts.
+    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before
+    // safe.nonce is executed), you should explicitly set the nonce value with an env var.
+    // Overriding this method with safe.nonce+1 will cause issues upon execution because
+    // the transaction hash will differ from the one signed.
+    //
+    // The process for determining a nonce override is as follows:
+    //   1. We look for an env var of the name SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}. For example,
+    //      SAFE_NONCE_0X6DF4742A3C28790E63FE933F7D108FE9FCE51EA4.
+    //   2. If it exists, we use it as the nonce override for the safe.
+    //   3. If it does not exist and _readFrom_SAFE_NONCE() returns true, we do the same for the
+    //      SAFE_NONCE env var.
+    //   4. Otherwise we fallback to the safe's current nonce (no override).
     function _getNonce(IGnosisSafe safe) internal view virtual returns (uint256 nonce) {
-        nonce = safe.nonce();
-        console.log("Safe current nonce:", nonce);
-        try vm.envUint("SAFE_NONCE") {
-            nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", nonce);
+        uint256 safeNonce = safe.nonce();
+        nonce = safeNonce;
+
+        // first try SAFE_NONCE
+        if (_readFrom_SAFE_NONCE()) {
+            try vm.envUint("SAFE_NONCE") {
+                nonce = vm.envUint("SAFE_NONCE");
+            }
+            catch {}
+        }
+
+        // then try SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}
+        string memory envVarName = string.concat("SAFE_NONCE_", vm.toUppercase(vm.toString(address(safe))));
+        try vm.envUint(envVarName) {
+            nonce = vm.envUint(envVarName);
         }
         catch {}
+
+        // print if any override
+        if (nonce != safeNonce) {
+            console.log("Overriding nonce for safe %s: %d -> %d", address(safe), safeNonce, nonce);
+        }
     }
 
-    function _encodeTransactionData(address _safe, bytes memory _data) internal view returns (bytes memory) {
-        // Ensure that the required contracts exist
-        require(address(multicall).code.length > 0, "multicall3 not deployed");
-        require(_safe.code.length > 0, "no code at safe address");
-
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 nonce = _getNonce(safe);
-
-        return safe.encodeTransactionData({
-            to: address(multicall),
-            value: 0,
-            data: _data,
-            operation: Enum.Operation.DelegateCall,
-            safeTxGas: 0,
-            baseGas: 0,
-            gasPrice: 0,
-            gasToken: address(0),
-            refundReceiver: address(0),
-            _nonce: nonce
-        });
-    }
-
-    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal view {
+    function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
+        bytes32 hash = _getTransactionHash(_safe, data);
+
+        emit DataToSign(txData);
+
+        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", address(_safe));
+        console.logBytes32(hash);
 
         console.log("---\nData to sign:");
         console.log("vvvvvvvv");
@@ -76,60 +79,100 @@ abstract contract MultisigBase is Simulator {
         console.log("###############################");
     }
 
-    function _checkSignatures(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
+    function _checkSignatures(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         view
     {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
+        _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
-        // safe requires all signatures to be unique, and sorted ascending by public key
-        _signatures = sortUniqueSignatures(_signatures, hash, safe.getThreshold());
-
-        safe.checkSignatures({
+        _safe.checkSignatures({
             dataHash: hash,
             data: data,
             signatures: _signatures
         });
     }
 
-    function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
+    function _executeTransaction(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
-        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
+        returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
+        _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
-        // safe requires all signatures to be unique, and sorted ascending by public key
-        _signatures = sortUniqueSignatures(_signatures, hash, safe.getThreshold());
-
-        logSimulationLink({
-            _to: _safe,
+        bytes memory simData = _execTransationCalldata(_safe, data, _signatures);
+        Simulation.logSimulationLink({
+            _to: address(_safe),
             _from: msg.sender,
-            _data: abi.encodeCall(
-                safe.execTransaction,
-                (
-                    address(multicall),
-                    0,
-                    data,
-                    Enum.Operation.DelegateCall,
-                    0,
-                    0,
-                    0,
-                    address(0),
-                    payable(address(0)),
-                    _signatures
-                )
-            )
+            _data: simData
         });
 
         vm.startStateDiffRecording();
-        bool success = safe.execTransaction({
-            to: address(multicall),
+        bool success = _execTransaction(_safe, data, _signatures);
+        Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
+        require(success, "MultisigBase::_executeTransaction: Transaction failed");
+        require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
+
+        // This can be used to e.g. call out to the Tenderly API and get additional
+        // data about the state diff before broadcasting the transaction.
+        Simulation.Payload memory simPayload = Simulation.Payload({
+            from: msg.sender,
+            to: address(_safe),
+            data: simData,
+            stateOverrides: new Simulation.StateOverride[](0)
+        });
+        return (accesses, simPayload);
+    }
+
+    function _getTransactionHash(IGnosisSafe _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
+        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
+        return _getTransactionHash(_safe, data);
+    }
+
+    function _getTransactionHash(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes32) {
+        return keccak256(_encodeTransactionData(_safe, _data));
+    }
+
+    function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
+        return _safe.encodeTransactionData({
+            to: MULTICALL3_ADDRESS,
             value: 0,
-            data: data,
+            data: _data,
+            operation: Enum.Operation.DelegateCall,
+            safeTxGas: 0,
+            baseGas: 0,
+            gasPrice: 0,
+            gasToken: address(0),
+            refundReceiver: address(0),
+            _nonce: _getNonce(_safe)
+        });
+    }
+
+    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
+        return abi.encodeCall(
+            _safe.execTransaction,
+            (
+                MULTICALL3_ADDRESS,
+                0,
+                _data,
+                Enum.Operation.DelegateCall,
+                0,
+                0,
+                0,
+                address(0),
+                payable(address(0)),
+                _signatures
+            )
+        );
+    }
+
+    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
+        return _safe.execTransaction({
+            to: MULTICALL3_ADDRESS,
+            value: 0,
+            data: _data,
             operation: Enum.Operation.DelegateCall,
             safeTxGas: 0,
             baseGas: 0,
@@ -138,119 +181,18 @@ abstract contract MultisigBase is Simulator {
             refundReceiver: payable(address(0)),
             signatures: _signatures
         });
-        Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
-        require(success, "MultisigBase::_executeTransaction: Transaction failed");
-        require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
-
-        // This can be used to e.g. call out to the Tenderly API and get additional
-        // data about the state diff before broadcasting the transaction.
-        SimulationPayload memory simPayload = SimulationPayload({
-            from: msg.sender,
-            to: address(safe),
-            data: abi.encodeCall(safe.execTransaction, (
-                address(multicall),
-                0,
-                data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                _signatures
-            )),
-            stateOverrides: new SimulationStateOverride[](0)
-        });
-        return (accesses, simPayload);
     }
 
-    function toArray(IMulticall3.Call3 memory call) internal pure returns (IMulticall3.Call3[] memory) {
-        IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
-        calls[0] = call;
-        return calls;
+    // The state change simulation can set the threshold, owner address and/or nonce.
+    // This allows simulation of the final transaction by overriding the threshold to 1.
+    // State changes reflected in the simulation as a result of these overrides will
+    // not be reflected in the prod execution.
+    function _safeOverrides(IGnosisSafe _safe, address _owner) internal virtual view returns (Simulation.StateOverride memory) {
+        uint256 _nonce = _getNonce(_safe);
+        return Simulation.overrideSafeThresholdOwnerAndNonce(_safe, _owner, _nonce);
     }
 
-    function prevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
-        LibSort.sort(_addresses);
-        bytes memory signatures;
-        for (uint256 i; i < _addresses.length; i++) {
-            signatures = bytes.concat(signatures, prevalidatedSignature(_addresses[i]));
-        }
-        return signatures;
-    }
-
-    function prevalidatedSignature(address _address) internal pure returns (bytes memory) {
-        uint8 v = 1;
-        bytes32 s = bytes32(0);
-        bytes32 r = bytes32(uint256(uint160(_address)));
-        return abi.encodePacked(r, s, v);
-    }
-
-    // see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
-    function sortUniqueSignatures(bytes memory _signatures, bytes32 dataHash, uint256 threshold) internal pure returns (bytes memory) {
-        bytes memory sorted;
-        uint256 count = uint256(_signatures.length / 0x41);
-        uint256[] memory addressesAndIndexes = new uint256[](threshold);
-        address[] memory uniqueAddresses = new address[](threshold);
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-        uint256 j;
-        for (uint256 i; i < count; i++) {
-            (v, r, s) = signatureSplit(_signatures, i);
-            address owner;
-            if (v <= 1) {
-                owner = address(uint160(uint256(r)));
-            } else if (v > 30) {
-                owner =
-                    ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", dataHash)), v - 4, r, s);
-            } else {
-                owner = ecrecover(dataHash, v, r, s);
-            }
-
-            // skip duplicate owners
-            uint256 k;
-            for (; k < j; k++) {
-                if (uniqueAddresses[k] == owner) break;
-            }
-            if (k < j) continue;
-
-            uniqueAddresses[j] = owner;
-            addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i); // address in first 160 bits, index in second 96 bits
-            j++;
-
-            // we have enough signatures to reach the threshold
-            if (j == threshold) break;
-        }
-        require(j == threshold, "not enough signatures");
-
-        LibSort.sort(addressesAndIndexes);
-        for (uint256 i; i < count; i++) {
-            uint256 index = addressesAndIndexes[i] & 0xffffffff;
-            (v, r, s) = signatureSplit(_signatures, index);
-            sorted = bytes.concat(sorted, abi.encodePacked(r, s, v));
-        }
-
-        // append the non-static part of the signatures (can contain EIP-1271 signatures if contracts are signers)
-        // if there were any duplicates detected above, they will be safely ignored by Safe's checkNSignatures method
-        if (_signatures.length > sorted.length) {
-            sorted = bytes.concat(sorted, Bytes.slice(_signatures, sorted.length, _signatures.length - sorted.length));
-        }
-
-        return sorted;
-    }
-
-    // see https://github.com/safe-global/safe-contracts/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/common/SignatureDecoder.sol
-    function signatureSplit(bytes memory signatures, uint256 pos)
-        internal
-        pure
-        returns (uint8 v, bytes32 r, bytes32 s)
-    {
-        assembly {
-            let signaturePos := mul(0x41, pos)
-            r := mload(add(signatures, add(signaturePos, 0x20)))
-            s := mload(add(signatures, add(signaturePos, 0x40)))
-            v := and(mload(add(signatures, add(signaturePos, 0x41))), 0xff)
-        }
-    }
+    // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
+    // By default, an empty (no-op) override is returned.
+    function _simulationOverrides() internal virtual view returns (Simulation.StateOverride[] memory overrides_) {}
 }

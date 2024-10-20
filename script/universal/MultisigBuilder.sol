@@ -19,19 +19,31 @@ abstract contract MultisigBuilder is MultisigBase {
      */
 
     /**
-     * @notice Follow up assertions to ensure that the script ran to completion.
+     * @notice Returns the safe address to execute the transaction from
      */
-    function _postCheck(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual;
+    function _ownerSafe() internal virtual view returns (address);
 
     /**
-     * @notice Creates the calldata
+     * @notice Creates the calldata for both signatures (`sign`) and execution (`run`)
      */
     function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
 
     /**
-     * @notice Returns the safe address to execute the transaction from
+     * @notice Follow up assertions to ensure that the script ran to completion.
      */
-    function _ownerSafe() internal virtual view returns (address);
+    function _postCheck() internal virtual;
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `sign` call.
+     */
+    function _postSign(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
+    }
+
+    /**
+     * @notice Follow up assertions on state and simulation after a `run` call.
+     */
+    function _postRun(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
+    }
 
     /**
      * -----------------------------------------------------------
@@ -50,55 +62,54 @@ abstract contract MultisigBuilder is MultisigBase {
      * used by a separate tx executor address in step 2, which doesn't have to be a signer.
      */
     function sign() public {
-        address safe = _ownerSafe();
+        IGnosisSafe safe = IGnosisSafe(_ownerSafe());
 
         // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
         // would not match the actual data we need to sign, because the simulation
         // would increment the nonce.
-        uint256 originalNonce = _getNonce(IGnosisSafe(safe));
+        uint256 _nonce = _getNonce(safe);
 
         IMulticall3.Call3[] memory calls = _buildCalls();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(safe, calls);
-        _postCheck(accesses, simPayload);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _simulateForSigner(safe, calls);
+        _postSign(accesses, simPayload);
+        _postCheck();
 
         // Restore the original nonce.
-        vm.store(safe, SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
+        vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_nonce));
 
         _printDataToSign(safe, calls);
     }
 
     /**
-     * Step 2
+     * Step 1.1 (optional)
      * ======
      * Verify the signatures generated from step 1 are valid.
      * This allow transactions to be pre-signed and stored safely before execution.
      */
     function verify(bytes memory _signatures) public view {
-        _checkSignatures(_ownerSafe(), _buildCalls(), _signatures);
-    }
-
-    function nonce() public view {
-        IGnosisSafe safe = IGnosisSafe(payable(_ownerSafe()));
-        console.log("Nonce:", safe.nonce());
+        _checkSignatures(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
     }
 
     /**
-     * Step 3
+     * Step 1.2 (optional)
      * ======
-     * Simulate the transaction. This method should be called by the final member of the multisig
+     * Simulate the transaction. This method can be called by the final member of the multisig
      * that will execute the transaction. Signatures from step 1 are required.
+     *
+     * Differs from `run` in that you can override the safe nonce for simulation purposes.
      */
-    function simulateSigned(bytes memory _signatures) public {
-        address _safe = _ownerSafe();
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 _nonce = _getNonce(safe);
-        vm.store(_safe, SAFE_NONCE_SLOT, bytes32(uint256(_nonce)));
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_safe, _buildCalls(), _signatures);
-        _postCheck(accesses, simPayload);
+    function simulate(bytes memory _signatures) public {
+        IGnosisSafe safe = IGnosisSafe(_ownerSafe());
+        vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_getNonce(safe)));
+
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(safe, _buildCalls(), _signatures);
+
+        _postRun(accesses, simPayload);
+        _postCheck();
     }
 
     /**
-     * Step 4
+     * Step 2
      * ======
      * Execute the transaction. This method should be called by the final member of the multisig
      * that will execute the transaction. Signatures from step 1 are required.
@@ -108,38 +119,36 @@ abstract contract MultisigBuilder is MultisigBase {
      */
     function run(bytes memory _signatures) public {
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_ownerSafe(), _buildCalls(), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
         vm.stopBroadcast();
 
-        _postCheck(accesses, simPayload);
+        _postRun(accesses, simPayload);
+        _postCheck();
     }
 
-    function _simulateForSigner(address _safe, IMulticall3.Call3[] memory _calls)
+    /**
+     * Print the current safe nonce.
+     */
+    function nonce() public view {
+        IGnosisSafe safe = IGnosisSafe(_ownerSafe());
+        console.log("Nonce:", safe.nonce());
+    }
+
+    function _readFrom_SAFE_NONCE() internal pure override returns (bool) {
+        return true;
+    }
+
+    function _simulateForSigner(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls)
         internal
-        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
+        returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        SimulationStateOverride[] memory overrides = _setOverrides(_safe);
+        Simulation.StateOverride[] memory overrides = _overrides(_safe);
 
-        bytes memory txData = abi.encodeCall(safe.execTransaction,
-            (
-                address(multicall),
-                0,
-                data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                prevalidatedSignature(msg.sender)
-            )
-        );
-
-        logSimulationLink({
-            _to: _safe,
+        bytes memory txData = _execTransationCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
+        Simulation.logSimulationLink({
+            _to: address(_safe),
             _data: txData,
             _from: msg.sender,
             _overrides: overrides
@@ -147,46 +156,22 @@ abstract contract MultisigBuilder is MultisigBase {
 
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
-        SimulationPayload memory simPayload = SimulationPayload({
-            to: _safe,
+        Simulation.Payload memory simPayload = Simulation.Payload({
+            to: address(_safe),
             data: txData,
             from: msg.sender,
             stateOverrides: overrides
         });
-        Vm.AccountAccess[] memory accesses = simulateFromSimPayload(simPayload);
+        Vm.AccountAccess[] memory accesses = Simulation.simulateFromSimPayload(simPayload);
         return (accesses, simPayload);
     }
 
-    // The state change simulation can set the threshold, owner address and/or nonce.
-    // This allows a non-signing owner to simulate the transaction
-    // State changes reflected in the simulation as a result of these overrides
-    // will not be reflected in the prod execution.
-    // This particular implementation can be overwritten by an inheriting script. The
-    // default logic is vestigial for backwards compatibility.
-    function _addOverrides(address _safe) internal virtual view returns (SimulationStateOverride memory) {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 _nonce = _getNonce(safe);
-        return overrideSafeThresholdAndNonce(_safe, _nonce);
-    }
-
-    // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
-    // By default, an empty (no-op) override is returned
-    function _addGenericOverrides() internal virtual view returns (SimulationStateOverride memory override_) {}
-
-    function _addMultipleGenericOverrides()
-        internal
-        view
-        virtual
-        returns (SimulationStateOverride[] memory overrides_)
-    {}
-
-    function _setOverrides(address _safe) internal virtual returns (SimulationStateOverride[] memory) {
-        SimulationStateOverride[] memory extraOverrides = _addMultipleGenericOverrides();
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2 + extraOverrides.length);
-        overrides[0] = _addOverrides(_safe);
-        overrides[1] = _addGenericOverrides();
-        for (uint256 i = 0; i < extraOverrides.length; i++) {
-            overrides[i + 2] = extraOverrides[i];
+    function _overrides(IGnosisSafe _safe) internal view returns (Simulation.StateOverride[] memory) {
+        Simulation.StateOverride[] memory simOverrides = _simulationOverrides();
+        Simulation.StateOverride[] memory overrides = new Simulation.StateOverride[](1 + simOverrides.length);
+        overrides[0] = _safeOverrides(_safe, msg.sender);
+        for (uint256 i = 0; i < simOverrides.length; i++) {
+            overrides[i + 1] = simOverrides[i];
         }
         return overrides;
     }
