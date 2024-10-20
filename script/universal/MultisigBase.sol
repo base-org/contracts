@@ -11,6 +11,8 @@ import "./Simulator.sol";
 abstract contract MultisigBase is Simulator {
     bytes32 internal constant SAFE_NONCE_SLOT = bytes32(uint256(5));
 
+    event DataToSign(bytes);
+
     function _getTransactionHash(IGnosisSafe _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
         return _getTransactionHash(_safe, data);
@@ -85,9 +87,11 @@ abstract contract MultisigBase is Simulator {
         });
     }
 
-    function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal view {
+    function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
+
+        emit DataToSign(txData);
 
         console.log("---\nData to sign:");
         console.log("vvvvvvvv");
