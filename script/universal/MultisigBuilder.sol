@@ -144,21 +144,7 @@ abstract contract MultisigBuilder is MultisigBase {
 
         SimulationStateOverride[] memory overrides = _setOverrides(_safe);
 
-        bytes memory txData = abi.encodeCall(_safe.execTransaction,
-            (
-                MULTICALL3_ADDRESS,
-                0,
-                data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                genPrevalidatedSignature(msg.sender)
-            )
-        );
-
+        bytes memory txData = _execTransationCalldata(_safe, data, genPrevalidatedSignature(msg.sender));
         logSimulationLink({
             _to: address(_safe),
             _data: txData,
