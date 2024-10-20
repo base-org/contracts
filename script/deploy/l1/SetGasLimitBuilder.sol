@@ -5,7 +5,8 @@ import {SystemConfig} from "@eth-optimism-bedrock/src/L1/SystemConfig.sol";
 import {
     MultisigBuilder,
     IMulticall3,
-    IGnosisSafe
+    IGnosisSafe,
+    Simulation
 } from "../../universal/MultisigBuilder.sol";
 import { Vm } from "forge-std/Vm.sol";
 
@@ -57,14 +58,14 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
 
     // We need to expect that the gas limit will have been updated previously in our simulation
     // Use this override to specifically set the gas limit to the expected update value.
-    function _simulationOverrides() internal view override returns (SimulationStateOverride[] memory) {
-        SimulationStateOverride[] memory _stateOverrides = new SimulationStateOverride[](1);
-        SimulationStorageOverride[] memory _storageOverrides = new SimulationStorageOverride[](1);
-        _storageOverrides[0] = SimulationStorageOverride({
+    function _simulationOverrides() internal view override returns (Simulation.StateOverride[] memory) {
+        Simulation.StateOverride[] memory _stateOverrides = new Simulation.StateOverride[](1);
+        Simulation.StorageOverride[] memory _storageOverrides = new Simulation.StorageOverride[](1);
+        _storageOverrides[0] = Simulation.StorageOverride({
             key: 0x0000000000000000000000000000000000000000000000000000000000000068, // slot of gas limit
             value: bytes32(uint(_fromGasLimit()))
         });
-        _stateOverrides[0] = SimulationStateOverride({contractAddress: L1_SYSTEM_CONFIG, overrides: _storageOverrides});
+        _stateOverrides[0] = Simulation.StateOverride({contractAddress: L1_SYSTEM_CONFIG, overrides: _storageOverrides});
         return _stateOverrides;
     }
 }

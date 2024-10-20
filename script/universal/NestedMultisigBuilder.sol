@@ -36,19 +36,19 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     /**
      * @notice Follow up assertions on state and simulation after a `sign` call.
      */
-    function _postSign(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    function _postSign(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
     }
 
     /**
      * @notice Follow up assertions on state and simulation after a `approve` call.
      */
-    function _postApprove(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    function _postApprove(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
     }
 
     /**
      * @notice Follow up assertions on state and simulation after a `run` call.
      */
-    function _postRun(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    function _postRun(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
     }
 
     /**
@@ -77,7 +77,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
 
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafe, nestedCalls);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafe, nestedCalls);
         _postSign(accesses, simPayload);
         _postCheck();
 
@@ -114,7 +114,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
 
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
         vm.stopBroadcast();
 
         _postApprove(accesses, simPayload);
@@ -134,7 +134,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         bytes memory signatures;
 
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafe, nestedCalls, signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(nestedSafe, nestedCalls, signatures);
         vm.stopBroadcast();
 
         _postRun(accesses, simPayload);
@@ -160,17 +160,17 @@ abstract contract NestedMultisigBuilder is MultisigBase {
 
     function _simulateForSigner(IGnosisSafe _signerSafe, IGnosisSafe _safe, IMulticall3.Call3[] memory _calls)
         internal
-        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
+        returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         IMulticall3.Call3[] memory calls = _simulateForSignerCalls(_signerSafe, _safe, data);
 
         // Now define the state overrides for the simulation.
-        SimulationStateOverride[] memory overrides = _overrides(_signerSafe, _safe);
+        Simulation.StateOverride[] memory overrides = _overrides(_signerSafe, _safe);
 
         bytes memory txData = abi.encodeCall(IMulticall3.aggregate3, (calls));
         console.log("---\nSimulation link:");
-        logSimulationLink({
+        Simulation.logSimulationLink({
             _to: MULTICALL3_ADDRESS,
             _data: txData,
             _from: msg.sender,
@@ -179,13 +179,13 @@ abstract contract NestedMultisigBuilder is MultisigBase {
 
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
-        SimulationPayload memory simPayload = SimulationPayload({
+        Simulation.Payload memory simPayload = Simulation.Payload({
             to: MULTICALL3_ADDRESS,
             data: txData,
             from: msg.sender,
             stateOverrides: overrides
         });
-        Vm.AccountAccess[] memory accesses = simulateFromSimPayload(simPayload);
+        Vm.AccountAccess[] memory accesses = Simulation.simulateFromSimPayload(simPayload);
         return (accesses, simPayload);
     }
 
@@ -222,9 +222,9 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         return calls;
     }
 
-    function _overrides(IGnosisSafe _signerSafe, IGnosisSafe _safe) internal view returns (SimulationStateOverride[] memory) {
-        SimulationStateOverride[] memory simOverrides = _simulationOverrides();
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2 + simOverrides.length);
+    function _overrides(IGnosisSafe _signerSafe, IGnosisSafe _safe) internal view returns (Simulation.StateOverride[] memory) {
+        Simulation.StateOverride[] memory simOverrides = _simulationOverrides();
+        Simulation.StateOverride[] memory overrides = new Simulation.StateOverride[](2 + simOverrides.length);
         overrides[0] = _safeOverrides(_signerSafe, MULTICALL3_ADDRESS);
         overrides[1] = _safeOverrides(_safe, msg.sender);
         for (uint256 i = 0; i < simOverrides.length; i++) {

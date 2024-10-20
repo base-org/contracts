@@ -36,13 +36,13 @@ abstract contract MultisigBuilder is MultisigBase {
     /**
      * @notice Follow up assertions on state and simulation after a `sign` call.
      */
-    function _postSign(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    function _postSign(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
     }
 
     /**
      * @notice Follow up assertions on state and simulation after a `run` call.
      */
-    function _postRun(Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) internal virtual {
+    function _postRun(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
     }
 
     /**
@@ -70,7 +70,7 @@ abstract contract MultisigBuilder is MultisigBase {
         uint256 _nonce = _getNonce(safe);
 
         IMulticall3.Call3[] memory calls = _buildCalls();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(safe, calls);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _simulateForSigner(safe, calls);
         _postSign(accesses, simPayload);
         _postCheck();
 
@@ -102,7 +102,7 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(_ownerSafe());
         vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_getNonce(safe)));
 
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(safe, _buildCalls(), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(safe, _buildCalls(), _signatures);
 
         _postRun(accesses, simPayload);
         _postCheck();
@@ -119,7 +119,7 @@ abstract contract MultisigBuilder is MultisigBase {
      */
     function run(bytes memory _signatures) public {
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
         vm.stopBroadcast();
 
         _postRun(accesses, simPayload);
@@ -140,14 +140,14 @@ abstract contract MultisigBuilder is MultisigBase {
 
     function _simulateForSigner(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls)
         internal
-        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
+        returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
 
-        SimulationStateOverride[] memory overrides = _overrides(_safe);
+        Simulation.StateOverride[] memory overrides = _overrides(_safe);
 
         bytes memory txData = _execTransationCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
-        logSimulationLink({
+        Simulation.logSimulationLink({
             _to: address(_safe),
             _data: txData,
             _from: msg.sender,
@@ -156,19 +156,19 @@ abstract contract MultisigBuilder is MultisigBase {
 
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
-        SimulationPayload memory simPayload = SimulationPayload({
+        Simulation.Payload memory simPayload = Simulation.Payload({
             to: address(_safe),
             data: txData,
             from: msg.sender,
             stateOverrides: overrides
         });
-        Vm.AccountAccess[] memory accesses = simulateFromSimPayload(simPayload);
+        Vm.AccountAccess[] memory accesses = Simulation.simulateFromSimPayload(simPayload);
         return (accesses, simPayload);
     }
 
-    function _overrides(IGnosisSafe _safe) internal view returns (SimulationStateOverride[] memory) {
-        SimulationStateOverride[] memory simOverrides = _simulationOverrides();
-        SimulationStateOverride[] memory overrides = new SimulationStateOverride[](1 + simOverrides.length);
+    function _overrides(IGnosisSafe _safe) internal view returns (Simulation.StateOverride[] memory) {
+        Simulation.StateOverride[] memory simOverrides = _simulationOverrides();
+        Simulation.StateOverride[] memory overrides = new Simulation.StateOverride[](1 + simOverrides.length);
         overrides[0] = _safeOverrides(_safe, msg.sender);
         for (uint256 i = 0; i < simOverrides.length; i++) {
             overrides[i + 1] = simOverrides[i];

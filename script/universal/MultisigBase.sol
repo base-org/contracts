@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import { Vm } from "forge-std/Vm.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
+import {CommonBase} from "forge-std/Base.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
-import {Simulator} from "./Simulator.sol";
+import {Simulation} from "./Simulation.sol";
 import {Signatures} from "./Signatures.sol";
 
-abstract contract MultisigBase is Simulator {
+abstract contract MultisigBase is CommonBase {
     bytes32 internal constant SAFE_NONCE_SLOT = bytes32(uint256(5));
 
     event DataToSign(bytes);
@@ -95,14 +96,14 @@ abstract contract MultisigBase is Simulator {
 
     function _executeTransaction(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
-        returns (Vm.AccountAccess[] memory, SimulationPayload memory)
+        returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
         bytes memory simData = _execTransationCalldata(_safe, data, _signatures);
-        logSimulationLink({
+        Simulation.logSimulationLink({
             _to: address(_safe),
             _from: msg.sender,
             _data: simData
@@ -116,11 +117,11 @@ abstract contract MultisigBase is Simulator {
 
         // This can be used to e.g. call out to the Tenderly API and get additional
         // data about the state diff before broadcasting the transaction.
-        SimulationPayload memory simPayload = SimulationPayload({
+        Simulation.Payload memory simPayload = Simulation.Payload({
             from: msg.sender,
             to: address(_safe),
             data: simData,
-            stateOverrides: new SimulationStateOverride[](0)
+            stateOverrides: new Simulation.StateOverride[](0)
         });
         return (accesses, simPayload);
     }
@@ -192,12 +193,12 @@ abstract contract MultisigBase is Simulator {
     // This allows simulation of the final transaction by overriding the threshold to 1.
     // State changes reflected in the simulation as a result of these overrides will
     // not be reflected in the prod execution.
-    function _safeOverrides(IGnosisSafe _safe, address _owner) internal virtual view returns (SimulationStateOverride memory) {
+    function _safeOverrides(IGnosisSafe _safe, address _owner) internal virtual view returns (Simulation.StateOverride memory) {
         uint256 _nonce = _getNonce(_safe);
-        return overrideSafeThresholdOwnerAndNonce(address(_safe), _owner, _nonce);
+        return Simulation.overrideSafeThresholdOwnerAndNonce(address(_safe), _owner, _nonce);
     }
 
     // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
     // By default, an empty (no-op) override is returned.
-    function _simulationOverrides() internal virtual view returns (SimulationStateOverride[] memory overrides_) {}
+    function _simulationOverrides() internal virtual view returns (Simulation.StateOverride[] memory overrides_) {}
 }
