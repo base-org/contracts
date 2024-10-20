@@ -20,22 +20,48 @@ abstract contract MultisigBase is Simulator {
         return keccak256(_encodeTransactionData(_safe, _data));
     }
 
-    // Virtual method which can be overwritten
-    // Default logic here is vestigial for backwards compatibility
-    // IMPORTANT: this method is used in the sign, simulate, AND execution contexts
-    // If you override it, ensure that the behavior is correct for all contexts
-    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before safe.nonce is executed),
-    // you should explicitly set the nonce value with an env var.
-    // Overwriting this method with safe.nonce + 1 will cause issues upon execution because the transaction
-    // hash will differ from the one signed.
+    // Subclasses that use nested safes should return `false` to force use of the
+    // explicit SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS} env var.
+    function _readFrom_SAFE_NONCE() internal pure virtual returns (bool);
+
+    // Get the nonce to use for the given safe, for signing and simulations.
+    //
+    // If you override it, ensure that the behavior is correct for all contexts.
+    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before
+    // safe.nonce is executed), you should explicitly set the nonce value with an env var.
+    // Overriding this method with safe.nonce+1 will cause issues upon execution because
+    // the transaction hash will differ from the one signed.
+    //
+    // The process for determining a nonce override is as follows:
+    //   1. We look for an env var of the name SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}. For example,
+    //      SAFE_NONCE_0X6DF4742A3C28790E63FE933F7D108FE9FCE51EA4.
+    //   2. If it exists, we use it as the nonce override for the safe.
+    //   3. If it does not exist and _readFrom_SAFE_NONCE() returns true, we do the same for the
+    //      SAFE_NONCE env var.
+    //   4. Otherwise we fallback to the safe's current nonce (no override).
     function _getNonce(IGnosisSafe safe) internal view virtual returns (uint256 nonce) {
-        nonce = safe.nonce();
-        console.log("Safe current nonce:", nonce);
-        try vm.envUint("SAFE_NONCE") {
-            nonce = vm.envUint("SAFE_NONCE");
-            console.log("Creating transaction with nonce:", nonce);
+        uint256 safeNonce = safe.nonce();
+        nonce = safeNonce;
+
+        // first try SAFE_NONCE
+        if (_readFrom_SAFE_NONCE()) {
+            try vm.envUint("SAFE_NONCE") {
+                nonce = vm.envUint("SAFE_NONCE");
+            }
+            catch {}
+        }
+
+        // then try SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}
+        string memory envVarName = string.concat("SAFE_NONCE_", vm.toUppercase(vm.toString(address(safe))));
+        try vm.envUint(envVarName) {
+            nonce = vm.envUint(envVarName);
         }
         catch {}
+
+        // print if any override
+        if (nonce != safeNonce) {
+            console.log("Overriding nonce for safe %s: %d -> %d", address(safe), safeNonce, nonce);
+        }
     }
 
     function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
