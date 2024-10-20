@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import { console } from "forge-std/console.sol";
 import { Vm } from "forge-std/Vm.sol";
+import { IGnosisSafe } from "./IGnosisSafe.sol";
 
 library Simulation {
     address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
@@ -50,9 +51,9 @@ library Simulation {
         return accesses;
     }
 
-    function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce) public view returns (StateOverride memory) {
+    function overrideSafeThresholdOwnerAndNonce(IGnosisSafe _safe, address _owner, uint256 _nonce) public view returns (StateOverride memory) {
         StateOverride memory state = StateOverride({
-            contractAddress: _safe,
+            contractAddress: address(_safe),
             overrides: new StorageOverride[](0)
         });
         state = addThresholdOverride(_safe, state);
@@ -61,11 +62,9 @@ library Simulation {
         return state;
     }
 
-    function addThresholdOverride(address _safe, StateOverride memory _state) internal view returns (StateOverride memory) {
+    function addThresholdOverride(IGnosisSafe _safe, StateOverride memory _state) internal view returns (StateOverride memory) {
         // get the threshold and check if we need to override it
-        (, bytes memory thresholdBytes) = _safe.staticcall(abi.encodeWithSignature("getThreshold()"));
-        uint256 threshold = abi.decode(thresholdBytes, (uint256));
-        if (threshold == 1) return _state;
+        if (_safe.getThreshold() == 1) return _state;
 
         // set the threshold (slot 4) to 1
         return addOverride(_state, StorageOverride({
@@ -74,10 +73,9 @@ library Simulation {
         }));
     }
 
-    function addOwnerOverride(address _safe, StateOverride memory _state, address _owner) internal view returns (StateOverride memory) {
+    function addOwnerOverride(IGnosisSafe _safe, StateOverride memory _state, address _owner) internal view returns (StateOverride memory) {
         // get the owners and check if _owner is an owner
-        (, bytes memory ownersBytes) = _safe.staticcall(abi.encodeWithSignature("getOwners()"));
-        address[] memory owners = abi.decode(ownersBytes, (address[]));
+        address[] memory owners = _safe.getOwners();
         for (uint256 i; i < owners.length; i++) {
             if (owners[i] == _owner) return _state;
         }
@@ -98,11 +96,9 @@ library Simulation {
         }));
     }
 
-    function addNonceOverride(address _safe, StateOverride memory _state, uint256 _nonce) internal view returns (StateOverride memory) {
+    function addNonceOverride(IGnosisSafe _safe, StateOverride memory _state, uint256 _nonce) internal view returns (StateOverride memory) {
         // get the nonce and check if we need to override it
-        (, bytes memory nonceBytes) = _safe.staticcall(abi.encodeWithSignature("nonce()"));
-        uint256 nonce = abi.decode(nonceBytes, (uint256));
-        if (nonce == _nonce) return _state;
+        if (_safe.nonce() == _nonce) return _state;
 
         // set the nonce (slot 5) to the desired value
         return addOverride(_state, StorageOverride({

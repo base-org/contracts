@@ -195,7 +195,7 @@ abstract contract MultisigBase is CommonBase {
     // not be reflected in the prod execution.
     function _safeOverrides(IGnosisSafe _safe, address _owner) internal virtual view returns (Simulation.StateOverride memory) {
         uint256 _nonce = _getNonce(_safe);
-        return Simulation.overrideSafeThresholdOwnerAndNonce(address(_safe), _owner, _nonce);
+        return Simulation.overrideSafeThresholdOwnerAndNonce(_safe, _owner, _nonce);
     }
 
     // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
