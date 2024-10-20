@@ -74,27 +74,28 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * their signature to a facilitator, who will execute the approval transaction for each
      * multisig (see step 2).
      */
-    function sign(address _signerSafe) public {
-        address nestedSafeAddress = _ownerSafe();
+    function sign(IGnosisSafe _signerSafe) public {
+        IGnosisSafe nestedSafe = IGnosisSafe(_ownerSafe());
 
         // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
         // would not match the actual data we need to sign, because the simulation
         // would increment the nonce.
-        uint256 originalNonce = _getNonce(IGnosisSafe(nestedSafeAddress));
-        uint256 originalSignerNonce = _getNonce(IGnosisSafe(_signerSafe));
+        uint256 originalNonce = _getNonce(nestedSafe);
+        uint256 originalSignerNonce = _getNonce(_signerSafe);
 
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
-        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
+        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
         bytes32 hash = _getTransactionHash(_signerSafe, toArray(call));
 
-        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", _signerSafe);
+        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", address(_signerSafe));
         console.logBytes32(hash);
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafeAddress, nestedCalls);
+
+        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafe, nestedCalls);
         _postCheck(accesses, simPayload);
 
         // Restore the original nonce.
-        vm.store(nestedSafeAddress, SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
-        vm.store(_signerSafe, SAFE_NONCE_SLOT, bytes32(uint256(originalSignerNonce)));
+        vm.store(address(nestedSafe), SAFE_NONCE_SLOT, bytes32(uint256(originalNonce)));
+        vm.store(address(_signerSafe), SAFE_NONCE_SLOT, bytes32(uint256(originalSignerNonce)));
 
         _printDataToSign(_signerSafe, toArray(call));
     }
@@ -106,16 +107,14 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * (non-signer), once for each of the multisigs involved in the nested multisig,
      * after collecting a threshold of signatures for each multisig (see step 1).
      */
-    function approve(address _signerSafe, bytes memory _signatures) public {
-        address nestedSafeAddress = _ownerSafe();
+    function approve(IGnosisSafe _signerSafe, bytes memory _signatures) public {
+        IGnosisSafe nestedSafe = IGnosisSafe(_ownerSafe());
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
-        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafeAddress, nestedCalls);
+        IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
 
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(_signerSafe, toArray(call), _signatures);
         vm.stopBroadcast();
-
-        _postCheck(accesses, simPayload);
     }
 
     /**
@@ -125,48 +124,45 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * all of the approval transactions have been submitted onchain (see step 2).
      */
     function run() public {
-        address nestedSafeAddress = _ownerSafe();
+        IGnosisSafe nestedSafe = IGnosisSafe(_ownerSafe());
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
 
         // signatures is empty, because `_executeTransaction` internally collects all of the approvedHash addresses
         bytes memory signatures;
 
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafeAddress, nestedCalls, signatures);
+        (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _executeTransaction(nestedSafe, nestedCalls, signatures);
         vm.stopBroadcast();
 
         _postCheck(accesses, simPayload);
     }
 
-    function _generateApproveCall(address _safe, IMulticall3.Call3[] memory _calls) internal view returns (IMulticall3.Call3 memory) {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
+    function _generateApproveCall(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal view returns (IMulticall3.Call3 memory) {
         bytes32 hash = _getTransactionHash(_safe, _calls);
 
         console.log("---\nNested hash:");
         console.logBytes32(hash);
 
         return IMulticall3.Call3({
-            target: _safe,
+            target: address(_safe),
             allowFailure: false,
-            callData: abi.encodeCall(safe.approveHash, (hash))
+            callData: abi.encodeCall(_safe.approveHash, (hash))
         });
     }
 
-    function _simulateForSigner(address _signerSafe, address _safe, IMulticall3.Call3[] memory _calls)
+    function _simulateForSigner(IGnosisSafe _signerSafe, IGnosisSafe _safe, IMulticall3.Call3[] memory _calls)
         internal
         returns (Vm.AccountAccess[] memory, SimulationPayload memory)
     {
-        IGnosisSafe signerSafe = IGnosisSafe(payable(_signerSafe));
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
-        IMulticall3.Call3[] memory calls = _simulateForSignerCalls(signerSafe, safe, data);
+        IMulticall3.Call3[] memory calls = _simulateForSignerCalls(_signerSafe, _safe, data);
 
         // For each safe, determine if a nonce override is needed. At this point,
         // no state overrides (i.e. vm.store) have been applied to the Foundry VM,
         // meaning the nonce is not yet overriden. Therefore these calls to
         // `safe.nonce()` will correctly return the current nonce of the safe.
-        bool safeNonceOverride = _getNonce(safe) != safe.nonce();
-        bool signerSafeNonceOverride = _getNonce(signerSafe) != signerSafe.nonce();
+        bool safeNonceOverride = _getNonce(_safe) != _safe.nonce();
+        bool signerSafeNonceOverride = _getNonce(_signerSafe) != _signerSafe.nonce();
 
         // Now define the state overrides for the simulation.
         SimulationStateOverride[] memory overrides = new SimulationStateOverride[](2);
@@ -175,24 +171,24 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // will look like upon transaction execution. The multisig threshold
         // will not actually change in the transaction execution.
         if (safeNonceOverride) {
-            overrides[0] = overrideSafeThresholdAndNonce(_safe, _getNonce(safe));
+            overrides[0] = overrideSafeThresholdAndNonce(address(_safe), _getNonce(_safe));
         } else {
-            overrides[0] = overrideSafeThreshold(_safe);
+            overrides[0] = overrideSafeThreshold(address(_safe));
         }
         // Set the signer safe threshold to 1, and set the owner to multicall.
         // This is a little hacky; reason is to simulate both the approve hash
         // and the final tx in a single Tenderly tx, using multicall. Given an
         // EOA cannot DELEGATECALL, multicall needs to own the signer safe.
         if (signerSafeNonceOverride) {
-            overrides[1] = overrideSafeThresholdOwnerAndNonce(_signerSafe, address(multicall), _getNonce(signerSafe));
+            overrides[1] = overrideSafeThresholdOwnerAndNonce(address(_signerSafe), MULTICALL3_ADDRESS, _getNonce(_signerSafe));
         } else {
-            overrides[1] = overrideSafeThresholdAndOwner(_signerSafe, address(multicall));
+            overrides[1] = overrideSafeThresholdAndOwner(address(_signerSafe), MULTICALL3_ADDRESS);
         }
 
         bytes memory txData = abi.encodeCall(IMulticall3.aggregate3, (calls));
         console.log("---\nSimulation link:");
         logSimulationLink({
-            _to: address(multicall),
+            _to: MULTICALL3_ADDRESS,
             _data: txData,
             _from: msg.sender,
             _overrides: overrides
@@ -201,7 +197,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
         SimulationPayload memory simPayload = SimulationPayload({
-            to: address(multicall),
+            to: MULTICALL3_ADDRESS,
             data: txData,
             from: msg.sender,
             stateOverrides: overrides
@@ -215,7 +211,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         returns (IMulticall3.Call3[] memory)
     {
         IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](2);
-        bytes32 hash = _getTransactionHash(address(_safe), _data);
+        bytes32 hash = _getTransactionHash(_safe, _data);
 
         // simulate an approveHash, so that signer can verify the data they are signing
         bytes memory approveHashData = abi.encodeCall(IMulticall3.aggregate3, (toArray(
@@ -225,7 +221,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 callData: abi.encodeCall(_safe.approveHash, (hash))
             })
         )));
-        bytes memory approveHashExec = _encodeCall(_signerSafe, approveHashData, genPrevalidatedSignature(address(multicall)));
+        bytes memory approveHashExec = _execTransationCalldata(_signerSafe, approveHashData, genPrevalidatedSignature(MULTICALL3_ADDRESS));
         calls[0] = IMulticall3.Call3({
             target: address(_signerSafe),
             allowFailure: false,
@@ -233,7 +229,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         });
 
         // simulate the final state changes tx, so that signer can verify the final results
-        bytes memory finalExec = _encodeCall(_safe, _data, genPrevalidatedSignature(address(_signerSafe)));
+        bytes memory finalExec = _execTransationCalldata(_safe, _data, genPrevalidatedSignature(address(_signerSafe)));
         calls[1] = IMulticall3.Call3({
             target: address(_safe),
             allowFailure: false,

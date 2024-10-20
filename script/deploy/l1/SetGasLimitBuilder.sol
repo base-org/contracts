@@ -55,10 +55,9 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
         nonce = safe.nonce() + _nonceOffset();
     }
 
-    function _addOverrides(address _safe) internal view override returns (SimulationStateOverride memory) {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 _nonce = _getNonce(safe);
-        return overrideSafeThresholdOwnerAndNonce(_safe, DEFAULT_SENDER, _nonce);
+    function _addOverrides(IGnosisSafe _safe) internal view override returns (SimulationStateOverride memory) {
+        uint256 _nonce = _getNonce(_safe);
+        return overrideSafeThresholdOwnerAndNonce(address(_safe), DEFAULT_SENDER, _nonce);
     }
 
     // We need to expect that the gas limit will have been updated previously in our simulation

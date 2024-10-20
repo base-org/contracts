@@ -9,15 +9,14 @@ import {LibSort} from "@solady/utils/LibSort.sol";
 import "./Simulator.sol";
 
 abstract contract MultisigBase is Simulator {
-    IMulticall3 internal constant multicall = IMulticall3(MULTICALL3_ADDRESS);
     bytes32 internal constant SAFE_NONCE_SLOT = bytes32(uint256(5));
 
-    function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
+    function _getTransactionHash(IGnosisSafe _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
         return _getTransactionHash(_safe, data);
     }
 
-    function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
+    function _getTransactionHash(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes32) {
         return keccak256(_encodeTransactionData(_safe, _data));
     }
 
@@ -39,16 +38,15 @@ abstract contract MultisigBase is Simulator {
         catch {}
     }
 
-    function _encodeTransactionData(address _safe, bytes memory _data) internal view returns (bytes memory) {
+    function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
         // Ensure that the required contracts exist
-        require(address(multicall).code.length > 0, "multicall3 not deployed");
-        require(_safe.code.length > 0, "no code at safe address");
+        require(MULTICALL3_ADDRESS.code.length > 0, "multicall3 not deployed");
+        require(address(_safe).code.length > 0, "no code at safe address");
 
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-        uint256 nonce = _getNonce(safe);
+        uint256 nonce = _getNonce(_safe);
 
-        return safe.encodeTransactionData({
-            to: address(multicall),
+        return _safe.encodeTransactionData({
+            to: MULTICALL3_ADDRESS,
             value: 0,
             data: _data,
             operation: Enum.Operation.DelegateCall,
@@ -61,7 +59,7 @@ abstract contract MultisigBase is Simulator {
         });
     }
 
-    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal view {
+    function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal view {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
 
@@ -76,27 +74,26 @@ abstract contract MultisigBase is Simulator {
         console.log("###############################");
     }
 
-    function _checkSignatures(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
+    function _checkSignatures(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         view
     {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = prepareSignatures(_safe, hash, _signatures);
 
-        safe.checkSignatures({
+        _safe.checkSignatures({
             dataHash: hash,
             data: data,
             signatures: _signatures
         });
     }
 
-    function _encodeCall(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
+    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
         return abi.encodeCall(
             _safe.execTransaction,
             (
-                address(multicall),
+                MULTICALL3_ADDRESS,
                 0,
                 _data,
                 Enum.Operation.DelegateCall,
@@ -112,7 +109,7 @@ abstract contract MultisigBase is Simulator {
 
     function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
         return _safe.execTransaction({
-            to: address(multicall),
+            to: MULTICALL3_ADDRESS,
             value: 0,
             data: _data,
             operation: Enum.Operation.DelegateCall,
@@ -125,24 +122,23 @@ abstract contract MultisigBase is Simulator {
         });
     }
 
-    function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
+    function _executeTransaction(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         returns (Vm.AccountAccess[] memory, SimulationPayload memory)
     {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = prepareSignatures(_safe, hash, _signatures);
 
-        bytes memory simData = _encodeCall(safe, data, _signatures);
+        bytes memory simData = _execTransationCalldata(_safe, data, _signatures);
         logSimulationLink({
-            _to: _safe,
+            _to: address(_safe),
             _from: msg.sender,
             _data: simData
         });
 
         vm.startStateDiffRecording();
-        bool success = _execTransaction(safe, data, _signatures);
+        bool success = _execTransaction(_safe, data, _signatures);
         Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
         require(success, "MultisigBase::_executeTransaction: Transaction failed");
         require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
@@ -151,7 +147,7 @@ abstract contract MultisigBase is Simulator {
         // data about the state diff before broadcasting the transaction.
         SimulationPayload memory simPayload = SimulationPayload({
             from: msg.sender,
-            to: address(safe),
+            to: address(_safe),
             data: simData,
             stateOverrides: new SimulationStateOverride[](0)
         });
@@ -164,14 +160,14 @@ abstract contract MultisigBase is Simulator {
         return calls;
     }
 
-    function prepareSignatures(address _safe, bytes32 hash, bytes memory _signatures) internal view returns (bytes memory) {
+    function prepareSignatures(IGnosisSafe _safe, bytes32 hash, bytes memory _signatures) internal view returns (bytes memory) {
         // prepend the prevalidated signatures to the signatures
         address[] memory approvers = _getApprovers(_safe, hash);
         bytes memory prevalidatedSignatures = genPrevalidatedSignatures(approvers);
         _signatures = bytes.concat(prevalidatedSignatures, _signatures);
 
         // safe requires all signatures to be unique, and sorted ascending by public key
-        return sortUniqueSignatures(_signatures, hash, IGnosisSafe(_safe).getThreshold(), prevalidatedSignatures.length);
+        return sortUniqueSignatures(_signatures, hash, _safe.getThreshold(), prevalidatedSignatures.length);
     }
 
     function genPrevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
@@ -190,17 +186,15 @@ abstract contract MultisigBase is Simulator {
         return abi.encodePacked(r, s, v);
     }
 
-    function _getApprovers(address _safe, bytes32 hash) internal view returns (address[] memory) {
-        IGnosisSafe safe = IGnosisSafe(payable(_safe));
-
+    function _getApprovers(IGnosisSafe _safe, bytes32 hash) internal view returns (address[] memory) {
         // get a list of owners that have approved this transaction
-        uint256 threshold = safe.getThreshold();
-        address[] memory owners = safe.getOwners();
+        uint256 threshold = _safe.getThreshold();
+        address[] memory owners = _safe.getOwners();
         address[] memory approvers = new address[](threshold);
         uint256 approverIndex;
         for (uint256 i; i < owners.length; i++) {
             address owner = owners[i];
-            uint256 approved = safe.approvedHashes(owner, hash);
+            uint256 approved = _safe.approvedHashes(owner, hash);
             if (approved == 1) {
                 approvers[approverIndex] = owner;
                 approverIndex++;
