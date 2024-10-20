@@ -76,10 +76,6 @@ abstract contract NestedMultisigBuilder is MultisigBase {
 
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(nestedSafe, nestedCalls);
-        bytes32 hash = _getTransactionHash(_signerSafe, toArray(call));
-
-        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", address(_signerSafe));
-        console.logBytes32(hash);
 
         (Vm.AccountAccess[] memory accesses, SimulationPayload memory simPayload) = _simulateForSigner(_signerSafe, nestedSafe, nestedCalls);
         _postSign(accesses, simPayload);

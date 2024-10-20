@@ -90,8 +90,12 @@ abstract contract MultisigBase is Simulator {
     function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
+        bytes32 hash = _getTransactionHash(_safe, data);
 
         emit DataToSign(txData);
+
+        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", address(_safe));
+        console.logBytes32(hash);
 
         console.log("---\nData to sign:");
         console.log("vvvvvvvv");
