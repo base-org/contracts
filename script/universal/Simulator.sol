@@ -127,15 +127,8 @@ abstract contract Simulator is CommonBase {
     }
 
     function logSimulationLink(address _to, bytes memory _data, address _from, SimulationStateOverride[] memory _overrides) public view {
-        (, bytes memory projData) = VM_ADDRESS.staticcall(
-            abi.encodeWithSignature("envOr(string,string)", "TENDERLY_PROJECT", "TENDERLY_PROJECT")
-        );
-        string memory proj = abi.decode(projData, (string));
-
-        (, bytes memory userData) = VM_ADDRESS.staticcall(
-            abi.encodeWithSignature("envOr(string,string)", "TENDERLY_USERNAME", "TENDERLY_USERNAME")
-        );
-        string memory username = abi.decode(userData, (string));
+        string memory proj = vm.envOr("TENDERLY_PROJECT", string("TENDERLY_PROJECT"));
+        string memory username = vm.envOr("TENDERLY_USERNAME", string("TENDERLY_USERNAME"));
 
         // the following characters are url encoded: []{}
         string memory stateOverrides = "%5B";
