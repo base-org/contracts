@@ -67,12 +67,6 @@ abstract contract MultisigBase is Simulator {
     }
 
     function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
-        // Ensure that the required contracts exist
-        require(MULTICALL3_ADDRESS.code.length > 0, "multicall3 not deployed");
-        require(address(_safe).code.length > 0, "no code at safe address");
-
-        uint256 nonce = _getNonce(_safe);
-
         return _safe.encodeTransactionData({
             to: MULTICALL3_ADDRESS,
             value: 0,
@@ -83,7 +77,7 @@ abstract contract MultisigBase is Simulator {
             gasPrice: 0,
             gasToken: address(0),
             refundReceiver: address(0),
-            _nonce: nonce
+            _nonce: _getNonce(_safe)
         });
     }
 
