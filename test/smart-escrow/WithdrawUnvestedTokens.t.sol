@@ -33,7 +33,7 @@ contract WithdrawUnvestedTokensSmartEscrow is BaseSmartEscrowTest {
 
         vm.prank(escrowOwner);
         smartEscrow.withdrawUnvestedTokens();
-        
+
         // Tokens were released to benefactor on termination and to Alice on the additional withdraw
         assertEq(OP_TOKEN.balanceOf(benefactor), totalTokensToRelease);
         assertEq(OP_TOKEN.balanceOf(alice), totalTokensToRelease);
@@ -48,7 +48,7 @@ contract WithdrawUnvestedTokensSmartEscrow is BaseSmartEscrowTest {
         vm.expectRevert(accessControlErrorMessage(beneficiaryOwner, DEFAULT_ADMIN_ROLE));
         vm.prank(beneficiaryOwner);
         smartEscrow.withdrawUnvestedTokens();
-        
+
         // No tokens were released
         assertEq(OP_TOKEN.balanceOf(benefactor), 0);
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
@@ -59,7 +59,7 @@ contract WithdrawUnvestedTokensSmartEscrow is BaseSmartEscrowTest {
         vm.expectRevert(abi.encodeWithSelector(notTerminatedSelector));
         vm.prank(escrowOwner);
         smartEscrow.withdrawUnvestedTokens();
-        
+
         // No tokens were released
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
     }

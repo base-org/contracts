@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { ReentrancyGuardUpgradeable } 
-    from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-import { SafeCall } from "@eth-optimism-bedrock/src/libraries/SafeCall.sol";
+import {SafeCall} from "@eth-optimism-bedrock/src/libraries/SafeCall.sol";
 
 /**
  * @title BalanceTracker
@@ -20,8 +19,9 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
     /**
      * @dev The maximum number of system addresses that can be funded.
      */
+
     uint256 public constant MAX_SYSTEM_ADDRESS_COUNT = 20;
-    
+
     /*//////////////////////////////////////////////////////////////
                             Immutables
     //////////////////////////////////////////////////////////////*/
@@ -29,7 +29,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @dev The address of the wallet receiving profits.
      */
     address payable public immutable PROFIT_WALLET;
-    
+
     /*//////////////////////////////////////////////////////////////
                             VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -53,10 +53,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _balanceSent The amount of funds sent to the system address.
      */
     event ProcessedFunds(
-        address indexed _systemAddress,
-        bool indexed _success,
-        uint256 _balanceNeeded,
-        uint256 _balanceSent
+        address indexed _systemAddress, bool indexed _success, uint256 _balanceNeeded, uint256 _balanceSent
     );
     /**
      * @dev Emitted when the BalanceTracker attempts to send funds to the profit wallet.
@@ -64,21 +61,14 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _success A boolean denoting the success or failure of fund send.
      * @param _balanceSent The amount of funds sent to the profit wallet.
      */
-    event SentProfit(
-        address indexed _profitWallet,
-        bool indexed _success,
-        uint256 _balanceSent
-    );
+    event SentProfit(address indexed _profitWallet, bool indexed _success, uint256 _balanceSent);
     /**
      * @dev Emitted when funds are received.
      * @param _sender The address sending funds.
      * @param _amount The amount of funds received from the sender.
      */
-    event ReceivedFunds(
-        address indexed _sender,
-        uint256 _amount
-    );
-    
+    event ReceivedFunds(address indexed _sender, uint256 _amount);
+
     /*//////////////////////////////////////////////////////////////
                             Constructor
     //////////////////////////////////////////////////////////////*/
@@ -86,11 +76,9 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @dev Constructor for the BalanceTracker contract that sets an immutable variable.
      * @param _profitWallet The address to send remaining ETH profits to.
      */
-    constructor(
-        address payable _profitWallet
-    ) {
+    constructor(address payable _profitWallet) {
         require(_profitWallet != address(0), "BalanceTracker: PROFIT_WALLET cannot be address(0)");
-        
+
         PROFIT_WALLET = _profitWallet;
 
         _disableInitializers();
@@ -104,21 +92,26 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _systemAddresses The system addresses being funded.
      * @param _targetBalances The target balances for system addresses.
      */
-    function initialize(
-        address payable[] memory _systemAddresses,
-        uint256[] memory _targetBalances
-    ) external reinitializer(2) {
+    function initialize(address payable[] memory _systemAddresses, uint256[] memory _targetBalances)
+        external
+        reinitializer(2)
+    {
         uint256 systemAddresesLength = _systemAddresses.length;
-        require(systemAddresesLength > 0, 
-            "BalanceTracker: systemAddresses cannot have a length of zero");
-        require(systemAddresesLength <= MAX_SYSTEM_ADDRESS_COUNT, 
-            "BalanceTracker: systemAddresses cannot have a length greater than 20");
-        require(systemAddresesLength == _targetBalances.length, 
-            "BalanceTracker: systemAddresses and targetBalances length must be equal");
+        require(systemAddresesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
+        require(
+            systemAddresesLength <= MAX_SYSTEM_ADDRESS_COUNT,
+            "BalanceTracker: systemAddresses cannot have a length greater than 20"
+        );
+        require(
+            systemAddresesLength == _targetBalances.length,
+            "BalanceTracker: systemAddresses and targetBalances length must be equal"
+        );
         for (uint256 i; i < systemAddresesLength;) {
             require(_systemAddresses[i] != address(0), "BalanceTracker: systemAddresses cannot contain address(0)");
             require(_targetBalances[i] > 0, "BalanceTracker: targetBalances cannot contain 0 target");
-            unchecked { i++; }
+            unchecked {
+                i++;
+            }
         }
 
         systemAddresses = _systemAddresses;
@@ -129,16 +122,17 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
 
     /**
      * @dev Funds system addresses and sends remaining profits to the profit wallet.
-     * 
+     *
      */
     function processFees() external nonReentrant {
         uint256 systemAddresesLength = systemAddresses.length;
-        require(systemAddresesLength > 0, 
-            "BalanceTracker: systemAddresses cannot have a length of zero");
+        require(systemAddresesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
         // Refills balances of systems addresses up to their target balances
         for (uint256 i; i < systemAddresesLength;) {
             refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
-            unchecked { i++; }
+            unchecked {
+                i++;
+            }
         }
 
         // Send remaining profits to profit wallet
@@ -164,12 +158,12 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _targetBalance The target balance for the system address being funded.
      */
     function refillBalanceIfNeeded(address _systemAddress, uint256 _targetBalance) internal {
-         uint256 systemAddressBalance = _systemAddress.balance;
+        uint256 systemAddressBalance = _systemAddress.balance;
         if (systemAddressBalance >= _targetBalance) {
             emit ProcessedFunds(_systemAddress, false, 0, 0);
             return;
         }
-        
+
         uint256 valueNeeded = _targetBalance - systemAddressBalance;
         uint256 balanceTrackerBalance = address(this).balance;
         uint256 valueToSend = valueNeeded > balanceTrackerBalance ? balanceTrackerBalance : valueNeeded;

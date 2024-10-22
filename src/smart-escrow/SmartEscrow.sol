@@ -86,7 +86,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
     /// @param endTimestamp The provided end time of the contract.
     error StartTimeAfterEndTime(uint256 startTimestamp, uint256 endTimestamp);
 
-    /// @notice The error is thrown when the cliffStart timestamp is less than the start time. 
+    /// @notice The error is thrown when the cliffStart timestamp is less than the start time.
     /// @param cliffStartTimestamp The provided start time of the contract.
     /// @param startTime The start time
     error CliffStartTimeInvalid(uint256 cliffStartTimestamp, uint256 startTime);
@@ -142,8 +142,10 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
         uint256 _initialTokens,
         uint256 _vestingEventTokens
     ) AccessControlDefaultAdminRules(5 days, _escrowOwner) {
-        if (_benefactor == address(0) || _beneficiary == address(0) ||
-        _beneficiaryOwner == address(0) || _benefactorOwner == address(0)) {
+        if (
+            _benefactor == address(0) || _beneficiary == address(0) || _beneficiaryOwner == address(0)
+                || _benefactorOwner == address(0)
+        ) {
             revert AddressIsZeroAddress();
         }
         if (_start >= _end) revert StartTimeAfterEndTime(_start, _end);
@@ -193,7 +195,7 @@ contract SmartEscrow is AccessControlDefaultAdminRules {
 
     /// @notice Allow benefactor owner to update benefactor address.
     /// @dev This method does not adjust the BENEFACTOR_OWNER_ROLE. Ensure to pair calling this
-    /// with a role change by DEFAULT_ADMIN if this is the desired outcome.  
+    /// with a role change by DEFAULT_ADMIN if this is the desired outcome.
     /// @param _newBenefactor New benefactor address.
     /// @notice Emits a {BenefactorUpdated} event.
     function updateBenefactor(address _newBenefactor) external onlyRole(BENEFACTOR_OWNER_ROLE) {

@@ -20,7 +20,7 @@ contract Utils is Script {
         address l1FeeVaultRecipient;
         uint256 l2BlockTime;
         uint256 l2ChainId;
-        uint64  l2GenesisBlockGasLimit;
+        uint64 l2GenesisBlockGasLimit;
         address l2OutputOracleChallenger;
         address l2OutputOracleProposer;
         uint256 l2OutputOracleStartingBlockNumber;
@@ -59,7 +59,7 @@ contract Utils is Script {
         address SequencerFeeVault;
     }
 
-    function getDeployBedrockConfig() external view returns(DeployBedrockConfig memory) {
+    function getDeployBedrockConfig() external view returns (DeployBedrockConfig memory) {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/inputs/foundry-config.json");
         string memory json = vm.readFile(path);
@@ -84,7 +84,7 @@ contract Utils is Script {
     }
 
     function writeAddressesFile(AddressesConfig memory cfg) external {
-        string memory json= "";
+        string memory json = "";
 
         // Proxy contract addresses
         vm.serializeAddress(json, "ProxyAdmin", cfg.ProxyAdmin);
@@ -96,7 +96,7 @@ contract Utils is Script {
         vm.serializeAddress(json, "OptimismMintableERC20FactoryProxy", cfg.OptimismMintableERC20FactoryProxy);
         vm.serializeAddress(json, "L1ERC721BridgeProxy", cfg.L1ERC721BridgeProxy);
         vm.serializeAddress(json, "SystemConfigProxy", cfg.SystemConfigProxy);
-        
+
         string memory finalJson = vm.serializeAddress(json, "SystemDictatorProxy", cfg.SystemDictatorProxy);
 
         finalJson.write(string.concat("unsorted.json"));
@@ -115,9 +115,8 @@ contract Utils is Script {
         vm.serializeAddress(json, "L2ToL1MessagePasser", cfg.L2ToL1MessagePasser);
         vm.serializeAddress(json, "SequencerFeeVault", cfg.SequencerFeeVault);
         vm.serializeAddress(json, "OptimismMintableERC20Factory", cfg.OptimismMintableERC20Factory);
-        string memory finalJson = vm.serializeAddress(
-            json, "OptimismMintableERC721Factory", cfg.OptimismMintableERC721Factory
-        );
+        string memory finalJson =
+            vm.serializeAddress(json, "OptimismMintableERC721Factory", cfg.OptimismMintableERC721Factory);
 
         finalJson.write(string.concat("unsortedl2Impls.json"));
     }

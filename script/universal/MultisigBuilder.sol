@@ -3,9 +3,9 @@ pragma solidity ^0.8.15;
 
 import "./MultisigBase.sol";
 
-import { console } from "forge-std/console.sol";
-import { IMulticall3 } from "forge-std/interfaces/IMulticall3.sol";
-import { Vm } from "forge-std/Vm.sol";
+import {console} from "forge-std/console.sol";
+import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 /**
  * @title MultisigBuilder
@@ -21,12 +21,12 @@ abstract contract MultisigBuilder is MultisigBase {
     /**
      * @notice Returns the safe address to execute the transaction from
      */
-    function _ownerSafe() internal virtual view returns (address);
+    function _ownerSafe() internal view virtual returns (address);
 
     /**
      * @notice Creates the calldata for both signatures (`sign`) and execution (`run`)
      */
-    function _buildCalls() internal virtual view returns (IMulticall3.Call3[] memory);
+    function _buildCalls() internal view virtual returns (IMulticall3.Call3[] memory);
 
     /**
      * @notice Follow up assertions to ensure that the script ran to completion.
@@ -36,14 +36,12 @@ abstract contract MultisigBuilder is MultisigBase {
     /**
      * @notice Follow up assertions on state and simulation after a `sign` call.
      */
-    function _postSign(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
-    }
+    function _postSign(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {}
 
     /**
      * @notice Follow up assertions on state and simulation after a `run` call.
      */
-    function _postRun(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {
-    }
+    function _postRun(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual {}
 
     /**
      * -----------------------------------------------------------
@@ -102,7 +100,8 @@ abstract contract MultisigBuilder is MultisigBase {
         IGnosisSafe safe = IGnosisSafe(_ownerSafe());
         vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_getNonce(safe)));
 
-        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(safe, _buildCalls(), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
+            _executeTransaction(safe, _buildCalls(), _signatures);
 
         _postRun(accesses, simPayload);
         _postCheck();
@@ -119,7 +118,8 @@ abstract contract MultisigBuilder is MultisigBase {
      */
     function run(bytes memory _signatures) public {
         vm.startBroadcast();
-        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
+        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
+            _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
         vm.stopBroadcast();
 
         _postRun(accesses, simPayload);
@@ -147,21 +147,12 @@ abstract contract MultisigBuilder is MultisigBase {
         Simulation.StateOverride[] memory overrides = _overrides(_safe);
 
         bytes memory txData = _execTransationCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
-        Simulation.logSimulationLink({
-            _to: address(_safe),
-            _data: txData,
-            _from: msg.sender,
-            _overrides: overrides
-        });
+        Simulation.logSimulationLink({_to: address(_safe), _data: txData, _from: msg.sender, _overrides: overrides});
 
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
-        Simulation.Payload memory simPayload = Simulation.Payload({
-            to: address(_safe),
-            data: txData,
-            from: msg.sender,
-            stateOverrides: overrides
-        });
+        Simulation.Payload memory simPayload =
+            Simulation.Payload({to: address(_safe), data: txData, from: msg.sender, stateOverrides: overrides});
         Vm.AccountAccess[] memory accesses = Simulation.simulateFromSimPayload(simPayload);
         return (accesses, simPayload);
     }

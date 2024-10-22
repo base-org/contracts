@@ -75,7 +75,7 @@ contract TerminateSmartEscrow is BaseSmartEscrowTest {
         vm.expectRevert(accessControlErrorMessage(alice, TERMINATOR_ROLE));
         vm.prank(alice);
         smartEscrow.terminate();
-        
+
         // All tokens should remain in the contract
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
     }

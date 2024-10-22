@@ -2,13 +2,8 @@
 pragma solidity 0.8.15;
 
 import {SystemConfig} from "@eth-optimism-bedrock/src/L1/SystemConfig.sol";
-import {
-    MultisigBuilder,
-    IMulticall3,
-    IGnosisSafe,
-    Simulation
-} from "../../universal/MultisigBuilder.sol";
-import { Vm } from "forge-std/Vm.sol";
+import {MultisigBuilder, IMulticall3, IGnosisSafe, Simulation} from "../../universal/MultisigBuilder.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 abstract contract SetGasLimitBuilder is MultisigBuilder {
     address internal SYSTEM_CONFIG_OWNER = vm.envAddress("SYSTEM_CONFIG_OWNER");
@@ -19,20 +14,18 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
      * Virtual Functions
      * -----------------------------------------------------------
      */
+    function _fromGasLimit() internal view virtual returns (uint64);
 
-    function _fromGasLimit() internal virtual view returns (uint64);
+    function _toGasLimit() internal view virtual returns (uint64);
 
-    function _toGasLimit() internal virtual view returns (uint64);
-
-    function _nonceOffset() internal virtual view returns (uint64);
+    function _nonceOffset() internal view virtual returns (uint64);
 
     /**
      * -----------------------------------------------------------
      * Implemented Functions
      * -----------------------------------------------------------
      */
-
-    function _postCheck() internal override view {
+    function _postCheck() internal view override {
         assert(SystemConfig(L1_SYSTEM_CONFIG).gasLimit() == _toGasLimit());
     }
 
@@ -63,7 +56,7 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
         Simulation.StorageOverride[] memory _storageOverrides = new Simulation.StorageOverride[](1);
         _storageOverrides[0] = Simulation.StorageOverride({
             key: 0x0000000000000000000000000000000000000000000000000000000000000068, // slot of gas limit
-            value: bytes32(uint(_fromGasLimit()))
+            value: bytes32(uint256(_fromGasLimit()))
         });
         _stateOverrides[0] = Simulation.StateOverride({contractAddress: L1_SYSTEM_CONFIG, overrides: _storageOverrides});
         return _stateOverrides;

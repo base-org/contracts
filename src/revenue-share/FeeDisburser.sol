@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import { L2StandardBridge } from "@eth-optimism-bedrock/src/L2/L2StandardBridge.sol";
-import { FeeVault } from "@eth-optimism-bedrock/src/universal/FeeVault.sol";
-import { Predeploys } from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
-import { SafeCall } from "@eth-optimism-bedrock/src/libraries/SafeCall.sol";
+import {L2StandardBridge} from "@eth-optimism-bedrock/src/L2/L2StandardBridge.sol";
+import {FeeVault} from "@eth-optimism-bedrock/src/universal/FeeVault.sol";
+import {Predeploys} from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
+import {SafeCall} from "@eth-optimism-bedrock/src/libraries/SafeCall.sol";
 
 /**
  * @title FeeDisburser
- * @dev Withdraws funds from system FeeVault contracts, shares revenue with Optimism, 
+ * @dev Withdraws funds from system FeeVault contracts, shares revenue with Optimism,
  *      and bridges the rest of funds to L1.
  */
 contract FeeDisburser {
@@ -51,7 +51,7 @@ contract FeeDisburser {
      * @dev The minimum amount of time in seconds that must pass between fee disbursals.
      */
     uint256 public immutable FEE_DISBURSEMENT_INTERVAL;
-    
+
     /*//////////////////////////////////////////////////////////////
                             Variables
     //////////////////////////////////////////////////////////////*/
@@ -65,7 +65,6 @@ contract FeeDisburser {
      *      withdrawals from Net Revenue calculations.
      */
     uint256 public netFeeRevenue;
-
 
     /*//////////////////////////////////////////////////////////////
                             Events
@@ -97,14 +96,12 @@ contract FeeDisburser {
      * @param _l1Wallet The L1 address which receives the remainder of the revenue.
      * @param _feeDisbursementInterval The minimum amount of time in seconds that must pass between fee disbursals.
      */
-    constructor(
-        address payable _optimismWallet,
-        address _l1Wallet,
-        uint256 _feeDisbursementInterval
-    ) {
+    constructor(address payable _optimismWallet, address _l1Wallet, uint256 _feeDisbursementInterval) {
         require(_optimismWallet != address(0), "FeeDisburser: OptimismWallet cannot be address(0)");
         require(_l1Wallet != address(0), "FeeDisburser: L1Wallet cannot be address(0)");
-        require(_feeDisbursementInterval >= 24 hours, "FeeDisburser: FeeDisbursementInterval cannot be less than 24 hours");
+        require(
+            _feeDisbursementInterval >= 24 hours, "FeeDisburser: FeeDisbursementInterval cannot be less than 24 hours"
+        );
 
         OPTIMISM_WALLET = _optimismWallet;
         L1_WALLET = _l1Wallet;
@@ -136,7 +133,7 @@ contract FeeDisburser {
 
         // Gross revenue is the sum of all fees
         uint256 feeBalance = address(this).balance;
-        
+
         // Stop execution if no fees were collected
         if (feeBalance == 0) {
             emit NoFeesCollected();
@@ -161,23 +158,20 @@ contract FeeDisburser {
         );
 
         // Send remaining funds to L1 wallet on L1
-        L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).bridgeETHTo{ value: address(this).balance }(
-            L1_WALLET,
-            WITHDRAWAL_MIN_GAS,
-            bytes("")
+        L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).bridgeETHTo{value: address(this).balance}(
+            L1_WALLET, WITHDRAWAL_MIN_GAS, bytes("")
         );
         emit FeesDisbursed(lastDisbursementTime, optimismRevenueShare, feeBalance);
     }
 
     /**
-    * @dev Receives ETH fees withdrawn from L2 FeeVaults. 
-    * @dev Will revert if ETH is not sent from L2 FeeVaults.
-    */
-    receive() external virtual payable {
-        if (msg.sender == Predeploys.SEQUENCER_FEE_WALLET || 
-            msg.sender == Predeploys.BASE_FEE_VAULT) {
+     * @dev Receives ETH fees withdrawn from L2 FeeVaults.
+     * @dev Will revert if ETH is not sent from L2 FeeVaults.
+     */
+    receive() external payable virtual {
+        if (msg.sender == Predeploys.SEQUENCER_FEE_WALLET || msg.sender == Predeploys.BASE_FEE_VAULT) {
             // Adds value received to net fee revenue if the sender is the sequencer or base FeeVault
-            netFeeRevenue += msg.value;   
+            netFeeRevenue += msg.value;
         } else if (msg.sender != Predeploys.L1_FEE_VAULT) {
             revert("FeeDisburser: Only FeeVaults can send ETH to FeeDisburser");
         }
@@ -188,18 +182,18 @@ contract FeeDisburser {
                             Internal Functions
     //////////////////////////////////////////////////////////////*/
     /**
-    * @dev Withdraws fees from a FeeVault.
-    * @param _feeVault The address of the FeeVault to withdraw from.
-    * @dev Withdrawal will only occur if the given FeeVault's balance is greater than or equal to
-           the minimum withdrawal amount.
-    */
+     * @dev Withdraws fees from a FeeVault.
+     * @param _feeVault The address of the FeeVault to withdraw from.
+     * @dev Withdrawal will only occur if the given FeeVault's balance is greater than or equal to
+     *        the minimum withdrawal amount.
+     */
     function feeVaultWithdrawal(address payable _feeVault) internal {
         require(
-            FeeVault(_feeVault).WITHDRAWAL_NETWORK() == FeeVault.WithdrawalNetwork.L2, 
+            FeeVault(_feeVault).WITHDRAWAL_NETWORK() == FeeVault.WithdrawalNetwork.L2,
             "FeeDisburser: FeeVault must withdraw to L2"
         );
         require(
-            FeeVault(_feeVault).RECIPIENT() == address(this), 
+            FeeVault(_feeVault).RECIPIENT() == address(this),
             "FeeDisburser: FeeVault must withdraw to FeeDisburser contract"
         );
         if (_feeVault.balance >= FeeVault(_feeVault).MIN_WITHDRAWAL_AMOUNT()) {

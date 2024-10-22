@@ -41,16 +41,14 @@ abstract contract MultisigBase is CommonBase {
         if (_readFrom_SAFE_NONCE()) {
             try vm.envUint("SAFE_NONCE") {
                 nonce = vm.envUint("SAFE_NONCE");
-            }
-            catch {}
+            } catch {}
         }
 
         // then try SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}
         string memory envVarName = string.concat("SAFE_NONCE_", vm.toUppercase(vm.toString(address(safe))));
         try vm.envUint(envVarName) {
             nonce = vm.envUint(envVarName);
-        }
-        catch {}
+        } catch {}
 
         // print if any override
         if (nonce != safeNonce) {
@@ -74,7 +72,9 @@ abstract contract MultisigBase is CommonBase {
         console.log("^^^^^^^^\n");
 
         console.log("########## IMPORTANT ##########");
-        console.log("Please make sure that the 'Data to sign' displayed above matches what you see in the simulation and on your hardware wallet.");
+        console.log(
+            "Please make sure that the 'Data to sign' displayed above matches what you see in the simulation and on your hardware wallet."
+        );
         console.log("This is a critical step that must not be skipped.");
         console.log("###############################");
     }
@@ -87,11 +87,7 @@ abstract contract MultisigBase is CommonBase {
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
-        _safe.checkSignatures({
-            dataHash: hash,
-            data: data,
-            signatures: _signatures
-        });
+        _safe.checkSignatures({dataHash: hash, data: data, signatures: _signatures});
     }
 
     function _executeTransaction(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
@@ -103,11 +99,7 @@ abstract contract MultisigBase is CommonBase {
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
         bytes memory simData = _execTransationCalldata(_safe, data, _signatures);
-        Simulation.logSimulationLink({
-            _to: address(_safe),
-            _from: msg.sender,
-            _data: simData
-        });
+        Simulation.logSimulationLink({_to: address(_safe), _from: msg.sender, _data: simData});
 
         vm.startStateDiffRecording();
         bool success = _execTransaction(_safe, data, _signatures);
@@ -150,7 +142,11 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal pure returns (bytes memory) {
+    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures)
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodeCall(
             _safe.execTransaction,
             (
@@ -168,7 +164,10 @@ abstract contract MultisigBase is CommonBase {
         );
     }
 
-    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
+    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures)
+        internal
+        returns (bool)
+    {
         return _safe.execTransaction({
             to: MULTICALL3_ADDRESS,
             value: 0,
@@ -187,12 +186,17 @@ abstract contract MultisigBase is CommonBase {
     // This allows simulation of the final transaction by overriding the threshold to 1.
     // State changes reflected in the simulation as a result of these overrides will
     // not be reflected in the prod execution.
-    function _safeOverrides(IGnosisSafe _safe, address _owner) internal virtual view returns (Simulation.StateOverride memory) {
+    function _safeOverrides(IGnosisSafe _safe, address _owner)
+        internal
+        view
+        virtual
+        returns (Simulation.StateOverride memory)
+    {
         uint256 _nonce = _getNonce(_safe);
         return Simulation.overrideSafeThresholdOwnerAndNonce(_safe, _owner, _nonce);
     }
 
     // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
     // By default, an empty (no-op) override is returned.
-    function _simulationOverrides() internal virtual view returns (Simulation.StateOverride[] memory overrides_) {}
+    function _simulationOverrides() internal view virtual returns (Simulation.StateOverride[] memory overrides_) {}
 }

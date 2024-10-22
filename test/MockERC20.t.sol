@@ -3,13 +3,12 @@ pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-
 contract MockERC20 is ERC20 {
-     /**
+    /**
      * See {ERC20-constructor}.
      */
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
-    
+
     /**
      * @dev Mints `amount` tokens to the caller.
      *
