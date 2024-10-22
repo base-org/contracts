@@ -31,7 +31,7 @@ contract UpdateBenefactorSmartEscrow is BaseSmartEscrowTest {
 
         vm.prank(benefactorOwner);
         smartEscrow.updateBenefactor(address(0));
-        
+
         // Benefactor remains the same
         assertEq(smartEscrow.benefactor(), benefactor);
     }
@@ -40,7 +40,7 @@ contract UpdateBenefactorSmartEscrow is BaseSmartEscrowTest {
         vm.expectRevert(accessControlErrorMessage(escrowOwner, BENEFACTOR_OWNER_ROLE));
         vm.prank(escrowOwner);
         smartEscrow.updateBenefactor(alice);
-        
+
         // Benefactor owner remains the same
         assertEq(smartEscrow.benefactor(), benefactor);
     }

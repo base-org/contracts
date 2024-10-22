@@ -38,7 +38,7 @@ contract ResumeSmartEscrow is BaseSmartEscrowTest {
         bytes4 selector = bytes4(keccak256("ContractIsTerminated()"));
         vm.expectRevert(abi.encodeWithSelector(selector));
         smartEscrow.release();
-        
+
         // All tokens should remain in the contract
         assertEq(OP_TOKEN.balanceOf(address(smartEscrow)), totalTokensToRelease);
     }

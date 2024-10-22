@@ -3,7 +3,7 @@ pragma solidity 0.8.15;
 
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-import { console } from "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {Preinstalls} from "@eth-optimism-bedrock/src/libraries/Preinstalls.sol";
 import {MultisigBuilder} from "../../script/universal/MultisigBuilder.sol";
@@ -17,7 +17,8 @@ contract MultisigBuilderTest is Test, MultisigBuilder {
     IGnosisSafe internal safe = IGnosisSafe(address(1001));
     Counter internal counter = new Counter(address(safe));
 
-    bytes internal dataToSign = hex"1901d4bb33110137810c444c1d9617abe97df097d587ecde64e6fcb38d7f49e1280c41dcff2c17a271265df60d1612a7387110475b6fc5178add5518196db5dba6bd";
+    bytes internal dataToSign =
+        hex"1901d4bb33110137810c444c1d9617abe97df097d587ecde64e6fcb38d7f49e1280c41dcff2c17a271265df60d1612a7387110475b6fc5178add5518196db5dba6bd";
 
     function setUp() public {
         vm.etch(address(safe), Preinstalls.getDeployedCode(Preinstalls.Safe_v130, block.chainid));
@@ -35,7 +36,7 @@ contract MultisigBuilderTest is Test, MultisigBuilder {
         require(counterValue == 1, "Counter value is not 1");
     }
 
-    function _buildCalls() internal override view returns (IMulticall3.Call3[] memory) {
+    function _buildCalls() internal view override returns (IMulticall3.Call3[] memory) {
         IMulticall3.Call3[] memory calls = new IMulticall3.Call3[](1);
 
         calls[0] = IMulticall3.Call3({
@@ -47,7 +48,7 @@ contract MultisigBuilderTest is Test, MultisigBuilder {
         return calls;
     }
 
-    function _ownerSafe() internal override view returns (address) {
+    function _ownerSafe() internal view override returns (address) {
         return address(safe);
     }
 
@@ -55,7 +56,7 @@ contract MultisigBuilderTest is Test, MultisigBuilder {
         vm.recordLogs();
         sign();
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        assertEq(keccak256(logs[logs.length-1].data), keccak256(abi.encode(dataToSign)));
+        assertEq(keccak256(logs[logs.length - 1].data), keccak256(abi.encode(dataToSign)));
     }
 
     function test_run() external {

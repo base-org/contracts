@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { CommonTest } from "test/CommonTest.t.sol";
-import { MockERC20 } from "test/MockERC20.t.sol";
+import {CommonTest} from "test/CommonTest.t.sol";
+import {MockERC20} from "test/MockERC20.t.sol";
 import "src/smart-escrow/SmartEscrow.sol";
 
 contract BaseSmartEscrowTest is CommonTest {

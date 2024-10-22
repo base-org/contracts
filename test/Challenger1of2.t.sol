@@ -2,14 +2,14 @@
 pragma solidity ^0.8.15;
 
 import {console} from "forge-std/console.sol";
-import { Test, StdUtils } from "forge-std/Test.sol";
+import {Test, StdUtils} from "forge-std/Test.sol";
 
-import { L2OutputOracle } from "@eth-optimism-bedrock/src/L1/L2OutputOracle.sol";
-import { ProxyAdmin } from "@eth-optimism-bedrock/src/universal/ProxyAdmin.sol";
-import { Proxy } from "@eth-optimism-bedrock/src/universal/Proxy.sol";
+import {L2OutputOracle} from "@eth-optimism-bedrock/src/L1/L2OutputOracle.sol";
+import {ProxyAdmin} from "@eth-optimism-bedrock/src/universal/ProxyAdmin.sol";
+import {Proxy} from "@eth-optimism-bedrock/src/universal/Proxy.sol";
 
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { Challenger1of2 } from "src/Challenger1of2.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {Challenger1of2} from "src/Challenger1of2.sol";
 
 contract Challenger1of2Test is Test {
     address deployer = address(1000);
@@ -22,7 +22,7 @@ contract Challenger1of2Test is Test {
     Proxy l2OutputOracleProxy;
     L2OutputOracle l2OutputOracle;
     Challenger1of2 challenger;
-   
+
     bytes DELETE_OUTPUTS_SIGNATURE = abi.encodeWithSignature("deleteL2Outputs(uint256)", 1);
     bytes NONEXISTENT_SIGNATURE = abi.encodeWithSignature("something()");
     bytes ZERO_OUTPUT = new bytes(0);
@@ -30,26 +30,18 @@ contract Challenger1of2Test is Test {
     uint256 ZERO = 0;
     uint256 NONZERO_INTEGER = 100;
 
-    event ChallengerCallExecuted(
-        address indexed _caller,
-        bytes _data,
-        bytes _result
-    );
+    event ChallengerCallExecuted(address indexed _caller, bytes _data, bytes _result);
 
     event OutputsDeleted(
-        address indexed _caller,
-        uint256 indexed prevNextOutputIndex,
-        uint256 indexed newNextOutputIndex
+        address indexed _caller, uint256 indexed prevNextOutputIndex, uint256 indexed newNextOutputIndex
     );
-    
+
     function setUp() public {
         vm.prank(deployer);
         proxyAdmin = new ProxyAdmin(deployer);
         l2OutputOracleProxy = new Proxy(address(proxyAdmin));
 
-        challenger = new Challenger1of2(
-            optimismWallet, coinbaseWallet, address(l2OutputOracleProxy)
-        );
+        challenger = new Challenger1of2(optimismWallet, coinbaseWallet, address(l2OutputOracleProxy));
 
         // Initialize L2OutputOracle implementation.
         l2OutputOracle = new L2OutputOracle();
@@ -90,9 +82,7 @@ contract Challenger1of2Test is Test {
     }
 
     function test_constructor_success() external {
-        Challenger1of2 challenger2 = new Challenger1of2(
-            optimismWallet, coinbaseWallet, address(l2OutputOracleProxy)
-        );
+        Challenger1of2 challenger2 = new Challenger1of2(optimismWallet, coinbaseWallet, address(l2OutputOracleProxy));
         assertEq(challenger2.OP_SIGNER(), optimismWallet);
         assertEq(challenger2.OTHER_SIGNER(), coinbaseWallet);
         assertEq(challenger2.L2_OUTPUT_ORACLE_PROXY(), address(l2OutputOracleProxy));
@@ -112,9 +102,8 @@ contract Challenger1of2Test is Test {
 
     function test_unauthorized_challenger_fails() external {
         // Try to make a call from a second challenger contract (not the official one)
-        Challenger1of2 otherChallenger = new Challenger1of2(
-            optimismWallet, coinbaseWallet, address(l2OutputOracleProxy)
-        );
+        Challenger1of2 otherChallenger =
+            new Challenger1of2(optimismWallet, coinbaseWallet, address(l2OutputOracleProxy));
         vm.prank(optimismWallet);
         vm.expectRevert("L2OutputOracle: only the challenger address can delete outputs");
         otherChallenger.execute(DELETE_OUTPUTS_SIGNATURE);
@@ -135,12 +124,9 @@ contract Challenger1of2Test is Test {
         emit ChallengerCallExecuted(optimismWallet, DELETE_OUTPUTS_SIGNATURE, ZERO_OUTPUT);
 
         // We expect deleteOutputs to be called
-        vm.expectCall(
-            address(l2OutputOracleProxy),
-            abi.encodeWithSignature("deleteL2Outputs(uint256)", 1)
-        );
+        vm.expectCall(address(l2OutputOracleProxy), abi.encodeWithSignature("deleteL2Outputs(uint256)", 1));
 
-        // Make the call        
+        // Make the call
         vm.prank(optimismWallet);
         challenger.execute(DELETE_OUTPUTS_SIGNATURE);
 
@@ -163,12 +149,9 @@ contract Challenger1of2Test is Test {
         emit ChallengerCallExecuted(coinbaseWallet, DELETE_OUTPUTS_SIGNATURE, ZERO_OUTPUT);
 
         // We expect deleteOutputs to be called
-        vm.expectCall(
-            address(l2OutputOracleProxy),
-            abi.encodeWithSignature("deleteL2Outputs(uint256)", 1)
-        );
+        vm.expectCall(address(l2OutputOracleProxy), abi.encodeWithSignature("deleteL2Outputs(uint256)", 1));
 
-        // Make the call        
+        // Make the call
         vm.prank(coinbaseWallet);
         challenger.execute(DELETE_OUTPUTS_SIGNATURE);
 
@@ -181,12 +164,7 @@ contract Challenger1of2Test is Test {
         vm.warp(oracle.computeL2Timestamp(oracle.nextBlockNumber()) + 1);
 
         vm.startPrank(proposer);
-        oracle.proposeL2Output(
-            bytes32("something"),
-            oracle.nextBlockNumber(),
-            blockhash(10),
-            10
-        );
+        oracle.proposeL2Output(bytes32("something"), oracle.nextBlockNumber(), blockhash(10), 10);
         vm.stopPrank();
     }
 }

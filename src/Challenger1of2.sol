@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title Challenger1of2
@@ -40,11 +40,7 @@ contract Challenger1of2 {
      * @param _data The data of the call being made.
      * @param _result The result of the call being made.
      */
-    event ChallengerCallExecuted(
-        address indexed _caller,
-        bytes _data,
-        bytes _result
-    );
+    event ChallengerCallExecuted(address indexed _caller, bytes _data, bytes _result);
 
     /*//////////////////////////////////////////////////////////////
                             Constructor
@@ -58,10 +54,7 @@ contract Challenger1of2 {
     constructor(address _opSigner, address _otherSigner, address _l2OutputOracleProxy) {
         require(_opSigner != address(0), "Challenger1of2: opSigner cannot be zero address");
         require(_otherSigner != address(0), "Challenger1of2: otherSigner cannot be zero address");
-        require(
-            _l2OutputOracleProxy.isContract(),
-            "Challenger1of2: l2OutputOracleProxy must be a contract"
-        );
+        require(_l2OutputOracleProxy.isContract(), "Challenger1of2: l2OutputOracleProxy must be a contract");
 
         OP_SIGNER = _opSigner;
         OTHER_SIGNER = _otherSigner;
@@ -72,7 +65,7 @@ contract Challenger1of2 {
                         External Functions
     //////////////////////////////////////////////////////////////*/
     /**
-     * @dev Executes a call as the Challenger (must be called by 
+     * @dev Executes a call as the Challenger (must be called by
      * Optimism or counter party signer).
      * @param _data Data for function call.
      */
@@ -82,11 +75,7 @@ contract Challenger1of2 {
             "Challenger1of2: must be an approved signer to execute"
         );
 
-        bytes memory result = Address.functionCall(
-            L2_OUTPUT_ORACLE_PROXY,
-            _data,
-            "Challenger1of2: failed to execute"
-        );
+        bytes memory result = Address.functionCall(L2_OUTPUT_ORACLE_PROXY, _data, "Challenger1of2: failed to execute");
 
         emit ChallengerCallExecuted(msg.sender, _data, result);
     }

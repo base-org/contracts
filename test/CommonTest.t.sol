@@ -22,7 +22,7 @@ contract CommonTest is Test {
     string NON_EMPTY_STRING = "non-empty";
     bytes NULL_BYTES = bytes("");
     bytes NON_NULL_BYTES = abi.encodePacked(uint256(1));
-    
+
     function setUp() public virtual {
         // Give alice and bob some ETH
         vm.deal(alice, 1 << 16);

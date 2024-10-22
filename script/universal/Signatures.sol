@@ -6,7 +6,11 @@ import {LibSort} from "@solady/utils/LibSort.sol";
 import {IGnosisSafe} from "./IGnosisSafe.sol";
 
 library Signatures {
-    function prepareSignatures(IGnosisSafe _safe, bytes32 hash, bytes memory _signatures) internal view returns (bytes memory) {
+    function prepareSignatures(IGnosisSafe _safe, bytes32 hash, bytes memory _signatures)
+        internal
+        view
+        returns (bytes memory)
+    {
         // prepend the prevalidated signatures to the signatures
         address[] memory approvers = getApprovers(_safe, hash);
         bytes memory prevalidatedSignatures = genPrevalidatedSignatures(approvers);
@@ -68,7 +72,11 @@ library Signatures {
      *                      Can be used to accomodate any additional signatures prepended to the array.
      *                      If prevalidated signatures were prepended, this should be the length of those signatures.
      */
-    function sortUniqueSignatures(bytes memory _signatures, bytes32 dataHash, uint256 threshold, uint256 dynamicOffset) internal pure returns (bytes memory) {
+    function sortUniqueSignatures(bytes memory _signatures, bytes32 dataHash, uint256 threshold, uint256 dynamicOffset)
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory sorted;
         uint256 count = uint256(_signatures.length / 0x41);
         uint256[] memory addressesAndIndexes = new uint256[](threshold);
@@ -127,7 +135,11 @@ library Signatures {
     }
 
     // see https://github.com/safe-global/safe-contracts/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/common/SignatureDecoder.sol
-    function signatureSplit(bytes memory signatures, uint256 pos) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
+    function signatureSplit(bytes memory signatures, uint256 pos)
+        internal
+        pure
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
         assembly {
             let signaturePos := mul(0x41, pos)
             r := mload(add(signatures, add(signaturePos, 0x20)))
