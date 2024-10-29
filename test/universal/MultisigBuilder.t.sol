@@ -7,7 +7,7 @@ import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {Preinstalls} from "@eth-optimism-bedrock/src/libraries/Preinstalls.sol";
 import {MultisigBuilder} from "../../script/universal/MultisigBuilder.sol";
-import {IGnosisSafe} from "../../script/universal/IGnosisSafe.sol";
+import {IGnosisSafe} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
 import {Counter} from "./Counter.sol";
 
 contract MultisigBuilderTest is Test, MultisigBuilder {

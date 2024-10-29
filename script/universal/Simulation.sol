@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {IGnosisSafe} from "./IGnosisSafe.sol";
+import {IGnosisSafe} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
 
 library Simulation {
     address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
