@@ -208,18 +208,13 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         calls[0] = IMulticall3.Call3({target: _signerSafe, allowFailure: false, callData: approveHashExec});
 
         // simulate the final state changes tx, so that signer can verify the final results
-        bytes memory finalExec =
-            _execTransationCalldata(_safe, _data, Signatures.genPrevalidatedSignature(_signerSafe));
+        bytes memory finalExec = _execTransationCalldata(_safe, _data, Signatures.genPrevalidatedSignature(_signerSafe));
         calls[1] = IMulticall3.Call3({target: _safe, allowFailure: false, callData: finalExec});
 
         return calls;
     }
 
-    function _overrides(address _signerSafe, address _safe)
-        internal
-        view
-        returns (Simulation.StateOverride[] memory)
-    {
+    function _overrides(address _signerSafe, address _safe) internal view returns (Simulation.StateOverride[] memory) {
         Simulation.StateOverride[] memory simOverrides = _simulationOverrides();
         Simulation.StateOverride[] memory overrides = new Simulation.StateOverride[](2 + simOverrides.length);
         overrides[0] = _safeOverrides(_signerSafe, MULTICALL3_ADDRESS);

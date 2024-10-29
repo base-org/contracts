@@ -56,8 +56,7 @@ library Simulation {
         view
         returns (StateOverride memory)
     {
-        StateOverride memory state =
-            StateOverride({contractAddress: _safe, overrides: new StorageOverride[](0)});
+        StateOverride memory state = StateOverride({contractAddress: _safe, overrides: new StorageOverride[](0)});
         state = addThresholdOverride(_safe, state);
         state = addOwnerOverride(_safe, state, _owner);
         state = addNonceOverride(_safe, state, _nonce);

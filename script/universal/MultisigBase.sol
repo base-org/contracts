@@ -164,10 +164,7 @@ abstract contract MultisigBase is CommonBase {
         );
     }
 
-    function _execTransaction(address _safe, bytes memory _data, bytes memory _signatures)
-        internal
-        returns (bool)
-    {
+    function _execTransaction(address _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
         return IGnosisSafe(_safe).execTransaction({
             to: MULTICALL3_ADDRESS,
             value: 0,
