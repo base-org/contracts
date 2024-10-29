@@ -31,7 +31,7 @@ abstract contract MultisigBuilder is MultisigBase {
     /**
      * @notice Follow up assertions to ensure that the script ran to completion.
      */
-    function _postCheck() internal virtual;
+    function _postCheck(Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) internal virtual;
 
     /**
      * @notice Follow up assertions on state and simulation after a `sign` call.
@@ -70,7 +70,7 @@ abstract contract MultisigBuilder is MultisigBase {
         IMulticall3.Call3[] memory calls = _buildCalls();
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) = _simulateForSigner(safe, calls);
         _postSign(accesses, simPayload);
-        _postCheck();
+        _postCheck(accesses, simPayload);
 
         // Restore the original nonce.
         vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_nonce));
@@ -104,7 +104,7 @@ abstract contract MultisigBuilder is MultisigBase {
             _executeTransaction(safe, _buildCalls(), _signatures);
 
         _postRun(accesses, simPayload);
-        _postCheck();
+        _postCheck(accesses, simPayload);
     }
 
     /**
@@ -123,7 +123,7 @@ abstract contract MultisigBuilder is MultisigBase {
         vm.stopBroadcast();
 
         _postRun(accesses, simPayload);
-        _postCheck();
+        _postCheck(accesses, simPayload);
     }
 
     /**
