@@ -3,10 +3,10 @@ pragma solidity ^0.8.15;
 
 import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
 import {LibSort} from "@solady/utils/LibSort.sol";
-import {IGnosisSafe} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+import {IGnosisSafe} from "./IGnosisSafe.sol";
 
 library Signatures {
-    function prepareSignatures(IGnosisSafe _safe, bytes32 hash, bytes memory _signatures)
+    function prepareSignatures(address _safe, bytes32 hash, bytes memory _signatures)
         internal
         view
         returns (bytes memory)
@@ -17,7 +17,7 @@ library Signatures {
         _signatures = bytes.concat(prevalidatedSignatures, _signatures);
 
         // safe requires all signatures to be unique, and sorted ascending by public key
-        return sortUniqueSignatures(_signatures, hash, _safe.getThreshold(), prevalidatedSignatures.length);
+        return sortUniqueSignatures(_signatures, hash, IGnosisSafe(_safe).getThreshold(), prevalidatedSignatures.length);
     }
 
     function genPrevalidatedSignatures(address[] memory _addresses) internal pure returns (bytes memory) {
@@ -36,15 +36,16 @@ library Signatures {
         return abi.encodePacked(r, s, v);
     }
 
-    function getApprovers(IGnosisSafe _safe, bytes32 hash) internal view returns (address[] memory) {
+    function getApprovers(address _safe, bytes32 hash) internal view returns (address[] memory) {
         // get a list of owners that have approved this transaction
-        uint256 threshold = _safe.getThreshold();
-        address[] memory owners = _safe.getOwners();
+        IGnosisSafe safe = IGnosisSafe(_safe);
+        uint256 threshold = safe.getThreshold();
+        address[] memory owners = safe.getOwners();
         address[] memory approvers = new address[](threshold);
         uint256 approverIndex;
         for (uint256 i; i < owners.length; i++) {
             address owner = owners[i];
-            uint256 approved = _safe.approvedHashes(owner, hash);
+            uint256 approved = safe.approvedHashes(owner, hash);
             if (approved == 1) {
                 approvers[approverIndex] = owner;
                 approverIndex++;
