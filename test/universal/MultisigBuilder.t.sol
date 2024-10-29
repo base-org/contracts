@@ -7,6 +7,7 @@ import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {Preinstalls} from "@eth-optimism-bedrock/src/libraries/Preinstalls.sol";
 import {MultisigBuilder} from "../../script/universal/MultisigBuilder.sol";
+import {Simulation} from "../../script/universal/Simulation.sol";
 import {IGnosisSafe} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
 import {Counter} from "./Counter.sol";
 
@@ -30,7 +31,7 @@ contract MultisigBuilderTest is Test, MultisigBuilder {
         safe.setup(owners, 2, address(0), "", address(0), address(0), 0, address(0));
     }
 
-    function _postCheck() internal view override {
+    function _postCheck(Vm.AccountAccess[] memory, Simulation.Payload memory) internal view override {
         // Check that the counter has been incremented
         uint256 counterValue = counter.count();
         require(counterValue == 1, "Counter value is not 1");

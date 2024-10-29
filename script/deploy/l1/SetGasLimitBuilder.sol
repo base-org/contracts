@@ -25,7 +25,7 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
      * Implemented Functions
      * -----------------------------------------------------------
      */
-    function _postCheck() internal view override {
+    function _postCheck(Vm.AccountAccess[] memory, Simulation.Payload memory) internal view override {
         assert(SystemConfig(L1_SYSTEM_CONFIG).gasLimit() == _toGasLimit());
     }
 
