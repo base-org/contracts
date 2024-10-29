@@ -5,7 +5,7 @@ import {Vm} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 import {CommonBase} from "forge-std/Base.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
-import {IGnosisSafe, Enum} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
 import {Simulation} from "./Simulation.sol";
 import {Signatures} from "./Signatures.sol";
 

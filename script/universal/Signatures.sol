@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
 import {LibSort} from "@solady/utils/LibSort.sol";
-import {IGnosisSafe} from "@eth-optimism-bedrock/scripts/interfaces/IGnosisSafe.sol";
+import {IGnosisSafe} from "./IGnosisSafe.sol";
 
 library Signatures {
     function prepareSignatures(address _safe, bytes32 hash, bytes memory _signatures)
