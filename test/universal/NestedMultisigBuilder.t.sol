@@ -15,9 +15,9 @@ contract NestedMultisigBuilderTest is Test, NestedMultisigBuilder {
     Vm.Wallet internal wallet1 = vm.createWallet("1");
     Vm.Wallet internal wallet2 = vm.createWallet("2");
 
-    IGnosisSafe internal safe1 = IGnosisSafe(address(1001));
-    IGnosisSafe internal safe2 = IGnosisSafe(address(1002));
-    IGnosisSafe internal safe3 = IGnosisSafe(address(1003));
+    address internal safe1 = address(1001);
+    address internal safe2 = address(1002);
+    address internal safe3 = address(1003);
     Counter internal counter = new Counter(address(safe3));
 
     bytes internal dataToSign1 =
@@ -27,23 +27,23 @@ contract NestedMultisigBuilderTest is Test, NestedMultisigBuilder {
 
     function setUp() public {
         bytes memory safeCode = Preinstalls.getDeployedCode(Preinstalls.Safe_v130, block.chainid);
-        vm.etch(address(safe1), safeCode);
-        vm.etch(address(safe2), safeCode);
-        vm.etch(address(safe3), safeCode);
+        vm.etch(safe1, safeCode);
+        vm.etch(safe2, safeCode);
+        vm.etch(safe3, safeCode);
         vm.etch(Preinstalls.MultiCall3, Preinstalls.getDeployedCode(Preinstalls.MultiCall3, block.chainid));
 
         address[] memory owners1 = new address[](1);
         owners1[0] = wallet1.addr;
-        safe1.setup(owners1, 1, address(0), "", address(0), address(0), 0, address(0));
+        IGnosisSafe(safe1).setup(owners1, 1, address(0), "", address(0), address(0), 0, address(0));
 
         address[] memory owners2 = new address[](1);
         owners2[0] = wallet2.addr;
-        safe2.setup(owners2, 1, address(0), "", address(0), address(0), 0, address(0));
+        IGnosisSafe(safe2).setup(owners2, 1, address(0), "", address(0), address(0), 0, address(0));
 
         address[] memory owners3 = new address[](2);
-        owners3[0] = address(safe1);
-        owners3[1] = address(safe2);
-        safe3.setup(owners3, 2, address(0), "", address(0), address(0), 0, address(0));
+        owners3[0] = safe1;
+        owners3[1] = safe2;
+        IGnosisSafe(safe3).setup(owners3, 2, address(0), "", address(0), address(0), 0, address(0));
     }
 
     function _postCheck(Vm.AccountAccess[] memory, Simulation.Payload memory) internal view override {

@@ -60,7 +60,7 @@ abstract contract MultisigBuilder is MultisigBase {
      * used by a separate tx executor address in step 2, which doesn't have to be a signer.
      */
     function sign() public {
-        IGnosisSafe safe = IGnosisSafe(_ownerSafe());
+        address safe = _ownerSafe();
 
         // Snapshot and restore Safe nonce after simulation, otherwise the data logged to sign
         // would not match the actual data we need to sign, because the simulation
@@ -73,7 +73,7 @@ abstract contract MultisigBuilder is MultisigBase {
         _postCheck(accesses, simPayload);
 
         // Restore the original nonce.
-        vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_nonce));
+        vm.store(safe, SAFE_NONCE_SLOT, bytes32(_nonce));
 
         _printDataToSign(safe, calls);
     }
@@ -85,7 +85,7 @@ abstract contract MultisigBuilder is MultisigBase {
      * This allow transactions to be pre-signed and stored safely before execution.
      */
     function verify(bytes memory _signatures) public view {
-        _checkSignatures(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
+        _checkSignatures(_ownerSafe(), _buildCalls(), _signatures);
     }
 
     /**
@@ -97,8 +97,8 @@ abstract contract MultisigBuilder is MultisigBase {
      * Differs from `run` in that you can override the safe nonce for simulation purposes.
      */
     function simulate(bytes memory _signatures) public {
-        IGnosisSafe safe = IGnosisSafe(_ownerSafe());
-        vm.store(address(safe), SAFE_NONCE_SLOT, bytes32(_getNonce(safe)));
+        address safe = _ownerSafe();
+        vm.store(safe, SAFE_NONCE_SLOT, bytes32(_getNonce(safe)));
 
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
             _executeTransaction(safe, _buildCalls(), _signatures);
@@ -119,7 +119,7 @@ abstract contract MultisigBuilder is MultisigBase {
     function run(bytes memory _signatures) public {
         vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(IGnosisSafe(_ownerSafe()), _buildCalls(), _signatures);
+            _executeTransaction(_ownerSafe(), _buildCalls(), _signatures);
         vm.stopBroadcast();
 
         _postRun(accesses, simPayload);
@@ -138,7 +138,7 @@ abstract contract MultisigBuilder is MultisigBase {
         return true;
     }
 
-    function _simulateForSigner(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls)
+    function _simulateForSigner(address _safe, IMulticall3.Call3[] memory _calls)
         internal
         returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
@@ -147,17 +147,17 @@ abstract contract MultisigBuilder is MultisigBase {
         Simulation.StateOverride[] memory overrides = _overrides(_safe);
 
         bytes memory txData = _execTransationCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
-        Simulation.logSimulationLink({_to: address(_safe), _data: txData, _from: msg.sender, _overrides: overrides});
+        Simulation.logSimulationLink({_to: _safe, _data: txData, _from: msg.sender, _overrides: overrides});
 
         // Forge simulation of the data logged in the link. If the simulation fails
         // we revert to make it explicit that the simulation failed.
         Simulation.Payload memory simPayload =
-            Simulation.Payload({to: address(_safe), data: txData, from: msg.sender, stateOverrides: overrides});
+            Simulation.Payload({to: _safe, data: txData, from: msg.sender, stateOverrides: overrides});
         Vm.AccountAccess[] memory accesses = Simulation.simulateFromSimPayload(simPayload);
         return (accesses, simPayload);
     }
 
-    function _overrides(IGnosisSafe _safe) internal view returns (Simulation.StateOverride[] memory) {
+    function _overrides(address _safe) internal view returns (Simulation.StateOverride[] memory) {
         Simulation.StateOverride[] memory simOverrides = _simulationOverrides();
         Simulation.StateOverride[] memory overrides = new Simulation.StateOverride[](1 + simOverrides.length);
         overrides[0] = _safeOverrides(_safe, msg.sender);

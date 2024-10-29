@@ -33,8 +33,8 @@ abstract contract MultisigBase is CommonBase {
     //   3. If it does not exist and _readFrom_SAFE_NONCE() returns true, we do the same for the
     //      SAFE_NONCE env var.
     //   4. Otherwise we fallback to the safe's current nonce (no override).
-    function _getNonce(IGnosisSafe safe) internal view virtual returns (uint256 nonce) {
-        uint256 safeNonce = safe.nonce();
+    function _getNonce(address _safe) internal view virtual returns (uint256 nonce) {
+        uint256 safeNonce = IGnosisSafe(_safe).nonce();
         nonce = safeNonce;
 
         // first try SAFE_NONCE
@@ -45,25 +45,25 @@ abstract contract MultisigBase is CommonBase {
         }
 
         // then try SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}
-        string memory envVarName = string.concat("SAFE_NONCE_", vm.toUppercase(vm.toString(address(safe))));
+        string memory envVarName = string.concat("SAFE_NONCE_", vm.toUppercase(vm.toString(_safe)));
         try vm.envUint(envVarName) {
             nonce = vm.envUint(envVarName);
         } catch {}
 
         // print if any override
         if (nonce != safeNonce) {
-            console.log("Overriding nonce for safe %s: %d -> %d", address(safe), safeNonce, nonce);
+            console.log("Overriding nonce for safe %s: %d -> %d", _safe, safeNonce, nonce);
         }
     }
 
-    function _printDataToSign(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls) internal {
+    function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
         bytes32 hash = _getTransactionHash(_safe, data);
 
         emit DataToSign(txData);
 
-        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", address(_safe));
+        console.log("---\nIf submitting onchain, call Safe.approveHash on %s with the following hash:", _safe);
         console.logBytes32(hash);
 
         console.log("---\nData to sign:");
@@ -79,7 +79,7 @@ abstract contract MultisigBase is CommonBase {
         console.log("###############################");
     }
 
-    function _checkSignatures(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
+    function _checkSignatures(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         view
     {
@@ -87,10 +87,10 @@ abstract contract MultisigBase is CommonBase {
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
-        _safe.checkSignatures({dataHash: hash, data: data, signatures: _signatures});
+        IGnosisSafe(_safe).checkSignatures({dataHash: hash, data: data, signatures: _signatures});
     }
 
-    function _executeTransaction(IGnosisSafe _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
+    function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
     {
@@ -99,7 +99,7 @@ abstract contract MultisigBase is CommonBase {
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
         bytes memory simData = _execTransationCalldata(_safe, data, _signatures);
-        Simulation.logSimulationLink({_to: address(_safe), _from: msg.sender, _data: simData});
+        Simulation.logSimulationLink({_to: _safe, _from: msg.sender, _data: simData});
 
         vm.startStateDiffRecording();
         bool success = _execTransaction(_safe, data, _signatures);
@@ -111,24 +111,24 @@ abstract contract MultisigBase is CommonBase {
         // data about the state diff before broadcasting the transaction.
         Simulation.Payload memory simPayload = Simulation.Payload({
             from: msg.sender,
-            to: address(_safe),
+            to: _safe,
             data: simData,
             stateOverrides: new Simulation.StateOverride[](0)
         });
         return (accesses, simPayload);
     }
 
-    function _getTransactionHash(IGnosisSafe _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
+    function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
         return _getTransactionHash(_safe, data);
     }
 
-    function _getTransactionHash(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes32) {
+    function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
         return keccak256(_encodeTransactionData(_safe, _data));
     }
 
-    function _encodeTransactionData(IGnosisSafe _safe, bytes memory _data) internal view returns (bytes memory) {
-        return _safe.encodeTransactionData({
+    function _encodeTransactionData(address _safe, bytes memory _data) internal view returns (bytes memory) {
+        return IGnosisSafe(_safe).encodeTransactionData({
             to: MULTICALL3_ADDRESS,
             value: 0,
             data: _data,
@@ -142,13 +142,13 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _execTransationCalldata(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures)
+    function _execTransationCalldata(address _safe, bytes memory _data, bytes memory _signatures)
         internal
         pure
         returns (bytes memory)
     {
         return abi.encodeCall(
-            _safe.execTransaction,
+            IGnosisSafe(_safe).execTransaction,
             (
                 MULTICALL3_ADDRESS,
                 0,
@@ -164,11 +164,11 @@ abstract contract MultisigBase is CommonBase {
         );
     }
 
-    function _execTransaction(IGnosisSafe _safe, bytes memory _data, bytes memory _signatures)
+    function _execTransaction(address _safe, bytes memory _data, bytes memory _signatures)
         internal
         returns (bool)
     {
-        return _safe.execTransaction({
+        return IGnosisSafe(_safe).execTransaction({
             to: MULTICALL3_ADDRESS,
             value: 0,
             data: _data,
@@ -186,7 +186,7 @@ abstract contract MultisigBase is CommonBase {
     // This allows simulation of the final transaction by overriding the threshold to 1.
     // State changes reflected in the simulation as a result of these overrides will
     // not be reflected in the prod execution.
-    function _safeOverrides(IGnosisSafe _safe, address _owner)
+    function _safeOverrides(address _safe, address _owner)
         internal
         view
         virtual
