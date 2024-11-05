@@ -218,7 +218,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         Simulation.StateOverride[] memory simOverrides = _simulationOverrides();
         Simulation.StateOverride[] memory overrides = new Simulation.StateOverride[](2 + simOverrides.length);
         overrides[0] = _safeOverrides(_signerSafe, MULTICALL3_ADDRESS);
-        overrides[1] = _safeOverrides(_safe, msg.sender);
+        overrides[1] = _safeOverrides(_safe, address(0));
         for (uint256 i = 0; i < simOverrides.length; i++) {
             overrides[i + 2] = simOverrides[i];
         }

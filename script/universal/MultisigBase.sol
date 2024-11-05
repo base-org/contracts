@@ -190,6 +190,9 @@ abstract contract MultisigBase is CommonBase {
         returns (Simulation.StateOverride memory)
     {
         uint256 _nonce = _getNonce(_safe);
+        if (_owner == address(0)) {
+            return Simulation.overrideSafeThresholdAndNonce(_safe, _nonce);
+        }
         return Simulation.overrideSafeThresholdOwnerAndNonce(_safe, _owner, _nonce);
     }
 

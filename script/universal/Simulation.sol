@@ -51,6 +51,17 @@ library Simulation {
         return accesses;
     }
 
+    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce)
+        public
+        view
+        returns (StateOverride memory)
+    {
+        StateOverride memory state = StateOverride({contractAddress: _safe, overrides: new StorageOverride[](0)});
+        state = addThresholdOverride(_safe, state);
+        state = addNonceOverride(_safe, state, _nonce);
+        return state;
+    }
+
     function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce)
         public
         view
