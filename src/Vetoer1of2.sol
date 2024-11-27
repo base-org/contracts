@@ -21,7 +21,7 @@ contract Vetoer1of2 {
     /// @notice The address of Optimism's signer (likely a multisig)
     address public immutable opSigner;
 
-    /// @notice The address of counter party's signer (likely a multisig)
+    /// @notice The address of counterparty's signer (likely a multisig)
     address public immutable otherSigner;
 
     /// @notice The address of the DelayedVetoable contract.
@@ -53,7 +53,7 @@ contract Vetoer1of2 {
     /// @notice Thrown at deployment if `target` is the zero address.
     error TargetCantBeZeroAddress();
 
-    /// @notice Thrown when calling 'veto()' from an unhautorized signer.
+    /// @notice Thrown when calling 'veto()' from an unhauthorized signer.
     error SenderIsNotWhitelistedSigner();
 
     //////////////////////////////////////////////////////////////
@@ -72,7 +72,7 @@ contract Vetoer1of2 {
     /// @custom:reverts TargetCantBeZeroAddress() if `target` is the zero address.
     ///
     /// @param opSigner_ Address of Optimism signer.
-    /// @param otherSigner_ Address of counter party signer.
+    /// @param otherSigner_ Address of counterparty signer.
     /// @param initiator Address of the initiator.
     /// @param target Address of the target.
     constructor(address opSigner_, address otherSigner_, address initiator, address target) {
@@ -117,11 +117,11 @@ contract Vetoer1of2 {
             revert SenderIsNotWhitelistedSigner();
         }
 
-        bytes memory result = Address.functionCall({
+        bytes memory result = Address.functionCall(
             target: delayedVetoable,
             data: msg.data,
             errorMessage: "Vetoer1of2: failed to execute"
-        });
+        );
 
         emit VetoCallExecuted({caller: msg.sender, result: result});
     }
