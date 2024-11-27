@@ -3,7 +3,7 @@ pragma solidity 0.8.15;
 
 /// @title FeeVault
 /// @notice The FeeVault contract is intended to:
-///         1. Be upgraded to by the Base FeeVault contracts
+///         1. Be upgraded by the Base FeeVault contracts
 ///         2. Set `totalProcessed` to the correct value
 ///         3. Be upgraded from to back to Optimism's FeeVault
 contract FeeVault {
