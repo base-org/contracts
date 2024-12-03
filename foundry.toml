@@ -1,8 +1,20 @@
 [profile.default]
 libs = ['lib']
-fs_permissions = [ {access = "read-write", path = "./"} ]
+fs_permissions = [{ access = "read-write", path = "./" }]
 optimizer = true
 optimizer_runs = 999999
 solc_version = "0.8.15"
+
+# Gas reporting settings
+gas_reports = ["*"]
+gas_reports_ignore = []
+gas_per_pub_word = 20000
+gas_per_pub_slot_storage = 20000
+
+[profile.gas]
+gas_reports = ["*"]
+optimizer = true
+optimizer_runs = 999999
+verbosity = 3
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
