@@ -101,7 +101,7 @@ abstract contract MultisigBuilder is MultisigBase {
         vm.store(safe, SAFE_NONCE_SLOT, bytes32(_getNonce(safe)));
 
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(safe, _buildCalls(), _signatures);
+            _executeTransaction(safe, _buildCalls(), _signatures, false);
 
         _postRun(accesses, simPayload);
         _postCheck(accesses, simPayload);
@@ -117,10 +117,8 @@ abstract contract MultisigBuilder is MultisigBase {
      * step 1. In this scenario, the caller doesn't need to be a signer of the multisig.
      */
     function run(bytes memory _signatures) public {
-        vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(_ownerSafe(), _buildCalls(), _signatures);
-        vm.stopBroadcast();
+            _executeTransaction(_ownerSafe(), _buildCalls(), _signatures, true);
 
         _postRun(accesses, simPayload);
         _postCheck(accesses, simPayload);

@@ -109,10 +109,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
         IMulticall3.Call3 memory call = _generateApproveCall(_ownerSafe(), nestedCalls);
 
-        vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(_signerSafe, _toArray(call), _signatures);
-        vm.stopBroadcast();
+            _executeTransaction(_signerSafe, _toArray(call), _signatures, true);
 
         _postApprove(accesses, simPayload);
     }
@@ -129,10 +127,8 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         // signatures is empty, because `_executeTransaction` internally collects all of the approvedHash addresses
         bytes memory signatures;
 
-        vm.startBroadcast();
         (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(_ownerSafe(), nestedCalls, signatures);
-        vm.stopBroadcast();
+            _executeTransaction(_ownerSafe(), nestedCalls, signatures, true);
 
         _postRun(accesses, simPayload);
         _postCheck(accesses, simPayload);
