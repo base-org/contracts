@@ -97,7 +97,7 @@ contract NestedMultisigBuilderTest is Test, NestedMultisigBuilder {
         bytes memory data = abi.encodeCall(this.approve, (safe2, abi.encodePacked(r, s, v)));
         (bool success, bytes memory result) = address(this).call(data);
         assertFalse(success);
-        assertEq(result, abi.encodeWithSignature("Error(string)", "GS026"));
+        assertEq(result, abi.encodeWithSignature("Error(string)", "not enough signatures"));
     }
 
     function test_run() external {

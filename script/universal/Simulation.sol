@@ -51,7 +51,11 @@ library Simulation {
         return accesses;
     }
 
-    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce) public view returns (StateOverride memory) {
+    function overrideSafeThresholdAndNonce(address _safe, uint256 _nonce)
+        internal
+        view
+        returns (StateOverride memory)
+    {
         StateOverride memory state = StateOverride({contractAddress: _safe, overrides: new StorageOverride[](0)});
         state = addThresholdOverride(_safe, state);
         state = addNonceOverride(_safe, state, _nonce);
@@ -59,7 +63,7 @@ library Simulation {
     }
 
     function overrideSafeThresholdOwnerAndNonce(address _safe, address _owner, uint256 _nonce)
-        public
+        internal
         view
         returns (StateOverride memory)
     {
@@ -133,12 +137,12 @@ library Simulation {
         return StateOverride({contractAddress: _state.contractAddress, overrides: overrides});
     }
 
-    function logSimulationLink(address _to, bytes memory _data, address _from) public view {
+    function logSimulationLink(address _to, bytes memory _data, address _from) internal view {
         logSimulationLink(_to, _data, _from, new StateOverride[](0));
     }
 
     function logSimulationLink(address _to, bytes memory _data, address _from, StateOverride[] memory _overrides)
-        public
+        internal
         view
     {
         string memory proj = vm.envOr("TENDERLY_PROJECT", string("TENDERLY_PROJECT"));

@@ -90,10 +90,12 @@ abstract contract MultisigBase is CommonBase {
         IGnosisSafe(_safe).checkSignatures({dataHash: hash, data: data, signatures: _signatures});
     }
 
-    function _executeTransaction(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
-        internal
-        returns (Vm.AccountAccess[] memory, Simulation.Payload memory)
-    {
+    function _executeTransaction(
+        address _safe,
+        IMulticall3.Call3[] memory _calls,
+        bytes memory _signatures,
+        bool _broadcast
+    ) internal returns (Vm.AccountAccess[] memory, Simulation.Payload memory) {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
@@ -102,7 +104,7 @@ abstract contract MultisigBase is CommonBase {
         Simulation.logSimulationLink({_to: _safe, _from: msg.sender, _data: simData});
 
         vm.startStateDiffRecording();
-        bool success = _execTransaction(_safe, data, _signatures);
+        bool success = _execTransaction(_safe, data, _signatures, _broadcast);
         Vm.AccountAccess[] memory accesses = vm.stopAndReturnStateDiff();
         require(success, "MultisigBase::_executeTransaction: Transaction failed");
         require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
@@ -164,7 +166,13 @@ abstract contract MultisigBase is CommonBase {
         );
     }
 
-    function _execTransaction(address _safe, bytes memory _data, bytes memory _signatures) internal returns (bool) {
+    function _execTransaction(address _safe, bytes memory _data, bytes memory _signatures, bool _broadcast)
+        internal
+        returns (bool)
+    {
+        if (_broadcast) {
+            vm.broadcast();
+        }
         return IGnosisSafe(_safe).execTransaction({
             to: MULTICALL3_ADDRESS,
             value: 0,
