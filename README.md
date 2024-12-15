@@ -27,7 +27,7 @@ For contract deployment artifacts, see [base-org/contract-deployments](https://g
 [![GitHub pull requests by-label](https://img.shields.io/github/issues-pr-raw/base-org/contracts)](https://github.com/base-org/contracts/pulls)
 [![GitHub Issues](https://img.shields.io/github/issues-raw/base-org/contracts.svg)](https://github.com/base-org/contracts/issues)
 
-### setup and testing
+### Setup and Testing
 
 - If you don't have foundry installed, run `make install-foundry`.
 - Copy `.env.example` to `.env` and fill in the variables.
