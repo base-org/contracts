@@ -9,53 +9,47 @@ import {IGnosisSafe, Enum} from "./IGnosisSafe.sol";
 import {Simulation} from "./Simulation.sol";
 import {Signatures} from "./Signatures.sol";
 
+/// @title MultisigBase - Base contract for working with multisignature wallets.
+/// @notice Provides utility functions for nonce handling, transaction encoding, and simulation.
 abstract contract MultisigBase is CommonBase {
+    /// @notice Slot in storage for the Safe's nonce.
     bytes32 internal constant SAFE_NONCE_SLOT = bytes32(uint256(5));
 
+    /// @notice Event emitted when data to sign is generated.
     event DataToSign(bytes);
 
-    // Subclasses that use nested safes should return `false` to force use of the
-    // explicit SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS} env var.
+    /// @dev Subclasses can override this to determine nonce behavior for nested safes.
     function _readFrom_SAFE_NONCE() internal pure virtual returns (bool);
 
-    // Get the nonce to use for the given safe, for signing and simulations.
-    //
-    // If you override it, ensure that the behavior is correct for all contexts.
-    // As an example, if you are pre-signing a message that needs safe.nonce+1 (before
-    // safe.nonce is executed), you should explicitly set the nonce value with an env var.
-    // Overriding this method with safe.nonce+1 will cause issues upon execution because
-    // the transaction hash will differ from the one signed.
-    //
-    // The process for determining a nonce override is as follows:
-    //   1. We look for an env var of the name SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}. For example,
-    //      SAFE_NONCE_0X6DF4742A3C28790E63FE933F7D108FE9FCE51EA4.
-    //   2. If it exists, we use it as the nonce override for the safe.
-    //   3. If it does not exist and _readFrom_SAFE_NONCE() returns true, we do the same for the
-    //      SAFE_NONCE env var.
-    //   4. Otherwise we fallback to the safe's current nonce (no override).
+    /// @notice Retrieves the nonce to use for the given Safe.
+    /// @param _safe Address of the Safe.
+    /// @return nonce The nonce to be used.
     function _getNonce(address _safe) internal view virtual returns (uint256 nonce) {
         uint256 safeNonce = IGnosisSafe(_safe).nonce();
         nonce = safeNonce;
 
-        // first try SAFE_NONCE
+        // Try reading from SAFE_NONCE environment variable if allowed.
         if (_readFrom_SAFE_NONCE()) {
             try vm.envUint("SAFE_NONCE") {
                 nonce = vm.envUint("SAFE_NONCE");
             } catch {}
         }
 
-        // then try SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS}
+        // Try reading from SAFE_NONCE_{UPPERCASE_SAFE_ADDRESS} environment variable.
         string memory envVarName = string.concat("SAFE_NONCE_", vm.toUppercase(vm.toString(_safe)));
         try vm.envUint(envVarName) {
             nonce = vm.envUint(envVarName);
         } catch {}
 
-        // print if any override
+        // Log any override of the nonce.
         if (nonce != safeNonce) {
             console.log("Overriding nonce for safe %s: %d -> %d", _safe, safeNonce, nonce);
         }
     }
 
+    /// @notice Prints the data that should be signed for a transaction.
+    /// @param _safe Address of the Safe.
+    /// @param _calls Array of calls to be aggregated.
     function _printDataToSign(address _safe, IMulticall3.Call3[] memory _calls) internal {
         bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (_calls));
         bytes memory txData = _encodeTransactionData(_safe, data);
@@ -72,13 +66,14 @@ abstract contract MultisigBase is CommonBase {
         console.log("^^^^^^^^\n");
 
         console.log("########## IMPORTANT ##########");
-        console.log(
-            "Please make sure that the 'Data to sign' displayed above matches what you see in the simulation and on your hardware wallet."
-        );
-        console.log("This is a critical step that must not be skipped.");
+        console.log("Please ensure the 'Data to sign' matches the simulation and hardware wallet output.");
         console.log("###############################");
     }
 
+    /// @notice Checks the validity of provided signatures for the transaction.
+    /// @param _safe Address of the Safe.
+    /// @param _calls Array of calls to be aggregated.
+    /// @param _signatures Combined signatures to validate.
     function _checkSignatures(address _safe, IMulticall3.Call3[] memory _calls, bytes memory _signatures)
         internal
         view
@@ -87,9 +82,19 @@ abstract contract MultisigBase is CommonBase {
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
-        IGnosisSafe(_safe).checkSignatures({dataHash: hash, data: data, signatures: _signatures});
+        IGnosisSafe(_safe).checkSignatures({
+            dataHash: hash,
+            data: data,
+            signatures: _signatures
+        });
     }
 
+    /// @notice Executes a transaction with the given data and signatures.
+    /// @param _safe Address of the Safe.
+    /// @param _calls Array of calls to be executed.
+    /// @param _signatures Combined signatures for the transaction.
+    /// @param _broadcast Whether to broadcast the transaction.
+    /// @return State changes and simulation payload.
     function _executeTransaction(
         address _safe,
         IMulticall3.Call3[] memory _calls,
@@ -109,26 +114,18 @@ abstract contract MultisigBase is CommonBase {
         require(success, "MultisigBase::_executeTransaction: Transaction failed");
         require(accesses.length > 0, "MultisigBase::_executeTransaction: No state changes");
 
-        // This can be used to e.g. call out to the Tenderly API and get additional
-        // data about the state diff before broadcasting the transaction.
         Simulation.Payload memory simPayload = Simulation.Payload({
             from: msg.sender,
             to: _safe,
             data: simData,
-            stateOverrides: new Simulation.StateOverride[](0)
-        });
+            stateOverrides: new Simulation.StateOverride     });
         return (accesses, simPayload);
     }
 
-    function _getTransactionHash(address _safe, IMulticall3.Call3[] memory calls) internal view returns (bytes32) {
-        bytes memory data = abi.encodeCall(IMulticall3.aggregate3, (calls));
-        return _getTransactionHash(_safe, data);
-    }
-
-    function _getTransactionHash(address _safe, bytes memory _data) internal view returns (bytes32) {
-        return keccak256(_encodeTransactionData(_safe, _data));
-    }
-
+    /// @notice Encodes transaction data for the Safe.
+    /// @param _safe Address of the Safe.
+    /// @param _data Transaction data.
+    /// @return Encoded transaction data.
     function _encodeTransactionData(address _safe, bytes memory _data) internal view returns (bytes memory) {
         return IGnosisSafe(_safe).encodeTransactionData({
             to: MULTICALL3_ADDRESS,
@@ -144,28 +141,12 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _execTransationCalldata(address _safe, bytes memory _data, bytes memory _signatures)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodeCall(
-            IGnosisSafe(_safe).execTransaction,
-            (
-                MULTICALL3_ADDRESS,
-                0,
-                _data,
-                Enum.Operation.DelegateCall,
-                0,
-                0,
-                0,
-                address(0),
-                payable(address(0)),
-                _signatures
-            )
-        );
-    }
-
+    /// @notice Executes the transaction using the Gnosis Safe interface.
+    /// @param _safe Address of the Safe.
+    /// @param _data Transaction data.
+    /// @param _signatures Combined signatures for the transaction.
+    /// @param _broadcast Whether to broadcast the transaction.
+    /// @return True if the transaction succeeds.
     function _execTransaction(address _safe, bytes memory _data, bytes memory _signatures, bool _broadcast)
         internal
         returns (bool)
@@ -186,25 +167,4 @@ abstract contract MultisigBase is CommonBase {
             signatures: _signatures
         });
     }
-
-    // The state change simulation can set the threshold, owner address and/or nonce.
-    // This allows simulation of the final transaction by overriding the threshold to 1.
-    // State changes reflected in the simulation as a result of these overrides will
-    // not be reflected in the prod execution.
-    function _safeOverrides(address _safe, address _owner)
-        internal
-        view
-        virtual
-        returns (Simulation.StateOverride memory)
-    {
-        uint256 _nonce = _getNonce(_safe);
-        if (_owner == address(0)) {
-            return Simulation.overrideSafeThresholdAndNonce(_safe, _nonce);
-        }
-        return Simulation.overrideSafeThresholdOwnerAndNonce(_safe, _owner, _nonce);
-    }
-
-    // Tenderly simulations can accept generic state overrides. This hook enables this functionality.
-    // By default, an empty (no-op) override is returned.
-    function _simulationOverrides() internal view virtual returns (Simulation.StateOverride[] memory overrides_) {}
 }
