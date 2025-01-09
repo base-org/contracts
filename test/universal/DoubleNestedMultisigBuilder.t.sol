@@ -19,7 +19,6 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
     address internal safe2 = address(1002);
     address internal safe3 = address(1003);
     address internal safe4 = address(1004);
-    address internal signerSafe = safe1;
     Counter internal counter = new Counter(address(safe4));
 
     bytes internal dataToSign1 =
@@ -75,44 +74,33 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
         return safe4;
     }
 
-    function _intermediateSafe() internal view override returns (address) {
-        return safe3;
-    }
-
-    function _signerSafe() internal view override returns (address) {
-        return signerSafe;
-    }
-
     function test_sign_double_nested_safe1() external {
         vm.recordLogs();
-        sign();
+        sign(safe1, safe3);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(keccak256(logs[logs.length - 1].data), keccak256(abi.encode(dataToSign1)));
     }
 
     function test_sign_double_nested_safe2() external {
-        signerSafe = safe2;
         vm.recordLogs();
-        sign();
+        sign(safe2, safe3);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(keccak256(logs[logs.length - 1].data), keccak256(abi.encode(dataToSign2)));
     }
 
     function test_approveInit_double_nested_safe1() external {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet1, keccak256(dataToSign1));
-        approveInit(abi.encodePacked(r, s, v));
+        approveInit(safe1, safe3, abi.encodePacked(r, s, v));
     }
 
     function test_approveInit_double_nested_safe2() external {
-        signerSafe = safe2;
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet2, keccak256(dataToSign2));
-        approveInit(abi.encodePacked(r, s, v));
+        approveInit(safe2, safe3, abi.encodePacked(r, s, v));
     }
 
     function test_approveInit_double_nested_notOwner() external {
-        signerSafe = safe2;
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet1, keccak256(dataToSign1));
-        bytes memory data = abi.encodeCall(this.approveInit, (abi.encodePacked(r, s, v)));
+        bytes memory data = abi.encodeCall(this.approveInit, (safe2, safe3, abi.encodePacked(r, s, v)));
         (bool success, bytes memory result) = address(this).call(data);
         assertFalse(success);
         assertEq(result, abi.encodeWithSignature("Error(string)", "not enough signatures"));
@@ -121,16 +109,15 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
     function test_runInit_double_nested() external {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(wallet1, keccak256(dataToSign1));
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(wallet2, keccak256(dataToSign2));
-        approveInit(abi.encodePacked(r1, s1, v1));
-        signerSafe = safe2;
-        approveInit(abi.encodePacked(r2, s2, v2));
-        runInit();
+        approveInit(safe1, safe3, abi.encodePacked(r1, s1, v1));
+        approveInit(safe2, safe3, abi.encodePacked(r2, s2, v2));
+        runInit(safe3);
     }
 
     function test_runInit_double_nested_notApproved() external {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(wallet1, keccak256(dataToSign1));
-        approveInit(abi.encodePacked(r1, s1, v1));
-        bytes memory data = abi.encodeCall(this.runInit, ());
+        approveInit(safe1, safe3, abi.encodePacked(r1, s1, v1));
+        bytes memory data = abi.encodeCall(this.runInit, (safe3));
         (bool success, bytes memory result) = address(this).call(data);
         assertFalse(success);
         assertEq(result, abi.encodeWithSignature("Error(string)", "not enough signatures"));
@@ -139,10 +126,9 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
     function test_run_double_nested() external {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(wallet1, keccak256(dataToSign1));
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(wallet2, keccak256(dataToSign2));
-        approveInit(abi.encodePacked(r1, s1, v1));
-        signerSafe = safe2;
-        approveInit(abi.encodePacked(r2, s2, v2));
-        runInit();
+        approveInit(safe1, safe3, abi.encodePacked(r1, s1, v1));
+        approveInit(safe2, safe3, abi.encodePacked(r2, s2, v2));
+        runInit(safe3);
 
         run();
     }
