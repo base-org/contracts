@@ -90,17 +90,17 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
 
     function test_approveInit_double_nested_safe1() external {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet1, keccak256(dataToSign1));
-        approveInit(safe1, safe3, abi.encodePacked(r, s, v));
+        approveOnBehalfOfSignerSafe(safe1, safe3, abi.encodePacked(r, s, v));
     }
 
     function test_approveInit_double_nested_safe2() external {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet2, keccak256(dataToSign2));
-        approveInit(safe2, safe3, abi.encodePacked(r, s, v));
+        approveOnBehalfOfSignerSafe(safe2, safe3, abi.encodePacked(r, s, v));
     }
 
     function test_approveInit_double_nested_notOwner() external {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wallet1, keccak256(dataToSign1));
-        bytes memory data = abi.encodeCall(this.approveInit, (safe2, safe3, abi.encodePacked(r, s, v)));
+        bytes memory data = abi.encodeCall(this.approveOnBehalfOfSignerSafe, (safe2, safe3, abi.encodePacked(r, s, v)));
         (bool success, bytes memory result) = address(this).call(data);
         assertFalse(success);
         assertEq(result, abi.encodeWithSignature("Error(string)", "not enough signatures"));
@@ -109,15 +109,15 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
     function test_runInit_double_nested() external {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(wallet1, keccak256(dataToSign1));
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(wallet2, keccak256(dataToSign2));
-        approveInit(safe1, safe3, abi.encodePacked(r1, s1, v1));
-        approveInit(safe2, safe3, abi.encodePacked(r2, s2, v2));
-        runInit(safe3);
+        approveOnBehalfOfSignerSafe(safe1, safe3, abi.encodePacked(r1, s1, v1));
+        approveOnBehalfOfSignerSafe(safe2, safe3, abi.encodePacked(r2, s2, v2));
+        approveOnBehalfOfIntermediateSafe(safe3);
     }
 
     function test_runInit_double_nested_notApproved() external {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(wallet1, keccak256(dataToSign1));
-        approveInit(safe1, safe3, abi.encodePacked(r1, s1, v1));
-        bytes memory data = abi.encodeCall(this.runInit, (safe3));
+        approveOnBehalfOfSignerSafe(safe1, safe3, abi.encodePacked(r1, s1, v1));
+        bytes memory data = abi.encodeCall(this.approveOnBehalfOfIntermediateSafe, (safe3));
         (bool success, bytes memory result) = address(this).call(data);
         assertFalse(success);
         assertEq(result, abi.encodeWithSignature("Error(string)", "not enough signatures"));
@@ -126,9 +126,9 @@ contract DoubleNestedMultisigBuilderTest is Test, DoubleNestedMultisigBuilder {
     function test_run_double_nested() external {
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(wallet1, keccak256(dataToSign1));
         (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(wallet2, keccak256(dataToSign2));
-        approveInit(safe1, safe3, abi.encodePacked(r1, s1, v1));
-        approveInit(safe2, safe3, abi.encodePacked(r2, s2, v2));
-        runInit(safe3);
+        approveOnBehalfOfSignerSafe(safe1, safe3, abi.encodePacked(r1, s1, v1));
+        approveOnBehalfOfSignerSafe(safe2, safe3, abi.encodePacked(r2, s2, v2));
+        approveOnBehalfOfIntermediateSafe(safe3);
 
         run();
     }

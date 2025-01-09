@@ -11,7 +11,8 @@ import "./NestedMultisigBase.sol";
  * There are three safes involved in a double nested multisig:
  * 1. The top-level safe, which should be returned by `_ownerSafe()`.
  * 2. One or more intermediate safes, which are signers for the top-level safe.
- * 3. Signer safes, which are signers for the intermediate safes. There should be at least one signer safe per intermediate safe.
+ * 3. Signer safes, which are signers for the intermediate safes.
+ * There should be at least one signer safe per intermediate safe.
  */
 abstract contract DoubleNestedMultisigBuilder is NestedMultisigBase {
     /**
@@ -64,12 +65,11 @@ abstract contract DoubleNestedMultisigBuilder is NestedMultisigBase {
      * (non-signer), once for each of the signer safes involved in the nested multisig,
      * after collecting a threshold of signatures for each signer safe (see step 1).
      */
-    function approveInit(address signerSafe, address intermediateSafe, bytes memory signatures) public {
+    function approveOnBehalfOfSignerSafe(address signerSafe, address intermediateSafe, bytes memory signatures)
+        public
+    {
         IMulticall3.Call3[] memory calls = _generateIntermediateSafeApprovalCall(intermediateSafe);
-
-        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(signerSafe, calls, signatures, true);
-
+        _executeTransaction(signerSafe, calls, signatures, true);
         _postApprove(signerSafe, intermediateSafe);
     }
 
@@ -80,15 +80,11 @@ abstract contract DoubleNestedMultisigBuilder is NestedMultisigBase {
      * facilitator (non-signer), for each of the intermediate safes after all of their approval
      * transactions have been submitted onchain by their signer safes (see step 2).
      */
-    function runInit(address intermediateSafe) public {
+    function approveOnBehalfOfIntermediateSafe(address intermediateSafe) public {
         IMulticall3.Call3[] memory calls = _generateTopSafeApprovalCall();
-
         // signatures is empty, because `_executeTransaction` internally collects all of the approvedHash addresses
         bytes memory signatures;
-
-        (Vm.AccountAccess[] memory accesses, Simulation.Payload memory simPayload) =
-            _executeTransaction(intermediateSafe, calls, signatures, true);
-
+        _executeTransaction(intermediateSafe, calls, signatures, true);
         _postRunInit(intermediateSafe);
     }
 
