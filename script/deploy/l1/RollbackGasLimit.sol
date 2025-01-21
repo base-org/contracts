@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import "./SetGasLimitBuilder.sol";
+import {SetGasLimitBuilder} from "./SetGasLimitBuilder.sol";
 
 contract RollbackGasLimit is SetGasLimitBuilder {
     function _fromGasLimit() internal view override returns (uint64) {

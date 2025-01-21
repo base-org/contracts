@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+// solhint-disable-next-line no-console
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
+
 import {IGnosisSafe} from "./IGnosisSafe.sol";
 
 library Simulation {
@@ -27,6 +29,7 @@ library Simulation {
     }
 
     function simulateFromSimPayload(Payload memory simPayload) internal returns (Vm.AccountAccess[] memory) {
+        // solhint-disable-next-line max-line-length
         require(simPayload.from != address(0), "Simulator::simulateFromSimPayload: from address cannot be zero address");
         require(simPayload.to != address(0), "Simulator::simulateFromSimPayload: to address cannot be zero address");
 
@@ -191,10 +194,13 @@ library Simulation {
         if (bytes(str).length + _data.length * 2 > 7980) {
             // tenderly's nginx has issues with long URLs, so print the raw input data separately
             str = string.concat(str, "\nInsert the following hex into the 'Raw input data' field:");
+            // solhint-disable-next-line no-console
             console.log(str);
+            // solhint-disable-next-line no-console
             console.log(vm.toString(_data));
         } else {
             str = string.concat(str, "&rawFunctionInput=", vm.toString(_data));
+            // solhint-disable-next-line no-console
             console.log(str);
         }
     }

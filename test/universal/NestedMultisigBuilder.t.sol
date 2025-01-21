@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import {Test} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
+// solhint-disable-next-line no-console
 import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
+import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
+
 import {Preinstalls} from "@eth-optimism-bedrock/src/libraries/Preinstalls.sol";
+
 import {NestedMultisigBuilder} from "../../script/universal/NestedMultisigBuilder.sol";
 import {Simulation} from "../../script/universal/Simulation.sol";
 import {IGnosisSafe} from "../../script/universal/IGnosisSafe.sol";
@@ -21,8 +24,10 @@ contract NestedMultisigBuilderTest is Test, NestedMultisigBuilder {
     Counter internal counter = new Counter(address(safe3));
 
     bytes internal dataToSign1 =
+    // solhint-disable-next-line max-line-length
         hex"1901d4bb33110137810c444c1d9617abe97df097d587ecde64e6fcb38d7f49e1280c3afd48ea8b0056e1028951ba44695d612396f4a1c3851f4b8a262c53ee1f2503";
     bytes internal dataToSign2 =
+    // solhint-disable-next-line max-line-length
         hex"190132640243d7aade8c72f3d90d2dbf359e9897feba5fce1453bc8d9e7ba10d17153afd48ea8b0056e1028951ba44695d612396f4a1c3851f4b8a262c53ee1f2503";
 
     function setUp() public {

@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "./MultisigBase.sol";
-
+// solhint-disable-next-line no-console
 import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
+import {Vm} from "forge-std/Vm.sol";
+
+import {IGnosisSafe} from "./IGnosisSafe.sol";
+import {MultisigBase} from "./MultisigBase.sol";
+import {Signatures} from "./Signatures.sol";
+import {Simulation} from "./Simulation.sol";
 
 /**
  * @title NestedMultisigBuilder
@@ -145,7 +150,9 @@ abstract contract NestedMultisigBuilder is MultisigBase {
     {
         bytes32 hash = _getTransactionHash(_safe, _calls);
 
+        // solhint-disable-next-line no-console
         console.log("---\nNested hash:");
+        // solhint-disable-next-line no-console
         console.logBytes32(hash);
 
         return IMulticall3.Call3({
@@ -166,7 +173,9 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         Simulation.StateOverride[] memory overrides = _overrides(_signerSafe, _safe);
 
         bytes memory txData = abi.encodeCall(IMulticall3.aggregate3, (calls));
+        // solhint-disable-next-line no-console
         console.log("---\nSimulation link:");
+        // solhint-disable-next-line max-line-length
         Simulation.logSimulationLink({_to: MULTICALL3_ADDRESS, _data: txData, _from: msg.sender, _overrides: overrides});
 
         // Forge simulation of the data logged in the link. If the simulation fails
@@ -204,6 +213,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
         calls[0] = IMulticall3.Call3({target: _signerSafe, allowFailure: false, callData: approveHashExec});
 
         // simulate the final state changes tx, so that signer can verify the final results
+        // solhint-disable-next-line max-line-length
         bytes memory finalExec = _execTransationCalldata(_safe, _data, Signatures.genPrevalidatedSignature(_signerSafe));
         calls[1] = IMulticall3.Call3({target: _safe, allowFailure: false, callData: finalExec});
 

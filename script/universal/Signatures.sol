@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+// solhint-disable-next-line no-console
+import {console} from "forge-std/console.sol";
+
 import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
 import {LibSort} from "@solady/utils/LibSort.sol";
+
 import {IGnosisSafe} from "./IGnosisSafe.sol";
-import {console} from "forge-std/console.sol";
 
 library Signatures {
     function prepareSignatures(address _safe, bytes32 hash, bytes memory _signatures)
@@ -66,10 +69,10 @@ library Signatures {
 
     /**
      * @notice Sorts the signatures in ascending order of the signer's address, and removes any duplicates.
-     * @dev see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
      * @param _safe Address of the Safe that should verify the signatures.
      * @param _signatures Signature data that should be verified.
-     *                    Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash.
+     *                    Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}),
+     *                    contract signature (EIP-1271) or approved hash.
      *                    Can be suffixed with EIP-1271 signatures after threshold*65 bytes.
      * @param dataHash Hash that is signed.
      * @param threshold Number of signatures required to approve the transaction.
@@ -77,6 +80,8 @@ library Signatures {
      *                      Can be used to accomodate any additional signatures prepended to the array.
      *                      If prevalidated signatures were prepended, this should be the length of those signatures.
      */
+    // solhint-disable-next-line max-line-length
+    // see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
     function sortUniqueSignatures(
         address _safe,
         bytes memory _signatures,
@@ -103,7 +108,8 @@ library Signatures {
             if (k < j) continue;
 
             uniqueAddresses[j] = owner;
-            addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i); // address in first 160 bits, index in second 96 bits
+            // address in first 160 bits, index in second 96 bits
+            addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i);
             j++;
 
             // we have enough signatures to reach the threshold
@@ -139,7 +145,9 @@ library Signatures {
         address owner = extractOwner(dataHash, r, s, v);
         bool isOwner = IGnosisSafe(_safe).isOwner(owner);
         if (!isOwner) {
+            // solhint-disable-next-line no-console
             console.log("---\nSkipping the following signature, which was recovered to a non-owner address %s:", owner);
+            // solhint-disable-next-line no-console
             console.logBytes(abi.encodePacked(r, s, v));
         }
         return (owner, isOwner);
@@ -155,6 +163,7 @@ library Signatures {
         return ecrecover(dataHash, v, r, s);
     }
 
+    // solhint-disable-next-line max-line-length
     // see https://github.com/safe-global/safe-contracts/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/common/SignatureDecoder.sol
     function signatureSplit(bytes memory signatures, uint256 pos)
         internal

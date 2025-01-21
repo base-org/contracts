@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import "forge-std/console.sol";
-import "forge-std/Script.sol";
+// solhint-disable-next-line no-console
+import {console} from "forge-std/console.sol";
+import {Script} from "forge-std/Script.sol";
 
 import {Predeploys} from "@eth-optimism-bedrock/src/libraries/Predeploys.sol";
 import {L2StandardBridge} from "@eth-optimism-bedrock/src/L2/L2StandardBridge.sol";
@@ -13,9 +14,11 @@ contract TestWithdraw is Script {
     function run(address _tester, address _l2erc20, address _l1erc721, address _l2erc721) public {
         vm.startBroadcast(_tester);
         L2StandardBridge(payable(Predeploys.L2_STANDARD_BRIDGE)).withdraw(_l2erc20, 10_000 ether, 200_000, bytes(""));
+        // solhint-disable-next-line no-console
         console.log("erc20 withdrawal initiated");
 
         L2ERC721Bridge(payable(Predeploys.L2_ERC721_BRIDGE)).bridgeERC721(_l2erc721, _l1erc721, 0, 200_000, bytes(""));
+        // solhint-disable-next-line no-console
         console.log("erc721 withdrawal initiated");
 
         vm.stopBroadcast();
