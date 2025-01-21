@@ -30,6 +30,5 @@ For contract deployment artifacts, see [base-org/contract-deployments](https://g
 ### setup and testing
 
 - If you don't have foundry installed, run `make install-foundry`.
-- Copy `.env.example` to `.env` and fill in the variables.
 - `make deps`
 - Test contracts: `make test`
