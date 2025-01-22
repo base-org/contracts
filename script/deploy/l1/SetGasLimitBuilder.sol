@@ -58,6 +58,7 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
             key: 0x0000000000000000000000000000000000000000000000000000000000000068, // slot of gas limit
             value: bytes32(uint256(_fromGasLimit()))
         });
+        // solhint-disable-next-line max-line-length
         _stateOverrides[0] = Simulation.StateOverride({contractAddress: L1_SYSTEM_CONFIG, overrides: _storageOverrides});
         return _stateOverrides;
     }

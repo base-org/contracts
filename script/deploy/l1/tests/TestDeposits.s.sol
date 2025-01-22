@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import "forge-std/console.sol";
-import "forge-std/Script.sol";
+// solhint-disable no-console
+import {console} from "forge-std/console.sol";
+import {Script} from "forge-std/Script.sol";
 
 import {ERC20PresetMinterPauser} from "@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 import {ERC721PresetMinterPauserAutoId} from

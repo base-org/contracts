@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "./NestedMultisigBase.sol";
+import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
+import {Vm} from "forge-std/Vm.sol";
+
+import {IGnosisSafe} from "./IGnosisSafe.sol";
+import {NestedMultisigBase} from "./NestedMultisigBase.sol";
+import {Simulation} from "./Simulation.sol";
 
 /**
  * @title DoubleNestedMultisigBuilder

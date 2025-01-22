@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+// solhint-disable no-console
+import {console} from "forge-std/console.sol";
+
 import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
 import {LibSort} from "@solady/utils/LibSort.sol";
+
 import {IGnosisSafe} from "./IGnosisSafe.sol";
-import {console} from "forge-std/console.sol";
 
 library Signatures {
     function prepareSignatures(address _safe, bytes32 hash, bytes memory _signatures)
@@ -64,6 +67,7 @@ library Signatures {
         return subset;
     }
 
+    // solhint-disable max-line-length
     /**
      * @notice Sorts the signatures in ascending order of the signer's address, and removes any duplicates.
      * @dev see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
