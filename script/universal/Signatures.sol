@@ -73,8 +73,7 @@ library Signatures {
      * @dev see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
      * @param _safe Address of the Safe that should verify the signatures.
      * @param _signatures Signature data that should be verified.
-     *                    Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}),
-     *                    contract signature (EIP-1271) or approved hash.
+     *                    Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}), contract signature (EIP-1271) or approved hash.
      *                    Can be suffixed with EIP-1271 signatures after threshold*65 bytes.
      * @param dataHash Hash that is signed.
      * @param threshold Number of signatures required to approve the transaction.
@@ -108,8 +107,7 @@ library Signatures {
             if (k < j) continue;
 
             uniqueAddresses[j] = owner;
-            // address in first 160 bits, index in second 96 bits
-            addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i);
+            addressesAndIndexes[j] = uint256(uint256(uint160(owner)) << 0x60 | i); // address in first 160 bits, index in second 96 bits
             j++;
 
             // we have enough signatures to reach the threshold

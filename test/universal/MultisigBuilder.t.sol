@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-// solhint-disable-next-line no-console
-import {console} from "forge-std/console.sol";
 import {IMulticall3} from "forge-std/interfaces/IMulticall3.sol";
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
