@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// solhint-disable-next-line no-console
+// solhint-disable no-console
 import {console} from "forge-std/console.sol";
 import {Vm} from "forge-std/Vm.sol";
 
@@ -194,13 +194,10 @@ library Simulation {
         if (bytes(str).length + _data.length * 2 > 7980) {
             // tenderly's nginx has issues with long URLs, so print the raw input data separately
             str = string.concat(str, "\nInsert the following hex into the 'Raw input data' field:");
-            // solhint-disable-next-line no-console
             console.log(str);
-            // solhint-disable-next-line no-console
             console.log(vm.toString(_data));
         } else {
             str = string.concat(str, "&rawFunctionInput=", vm.toString(_data));
-            // solhint-disable-next-line no-console
             console.log(str);
         }
     }

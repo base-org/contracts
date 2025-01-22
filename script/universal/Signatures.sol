@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-// solhint-disable-next-line no-console
+// solhint-disable no-console
 import {console} from "forge-std/console.sol";
 
 import {Bytes} from "@eth-optimism-bedrock/src/libraries/Bytes.sol";
@@ -67,8 +67,10 @@ library Signatures {
         return subset;
     }
 
+    // solhint-disable max-line-length
     /**
      * @notice Sorts the signatures in ascending order of the signer's address, and removes any duplicates.
+     * @dev see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
      * @param _safe Address of the Safe that should verify the signatures.
      * @param _signatures Signature data that should be verified.
      *                    Can be packed ECDSA signature ({bytes32 r}{bytes32 s}{uint8 v}),
@@ -80,8 +82,6 @@ library Signatures {
      *                      Can be used to accomodate any additional signatures prepended to the array.
      *                      If prevalidated signatures were prepended, this should be the length of those signatures.
      */
-    // solhint-disable-next-line max-line-length
-    // see https://github.com/safe-global/safe-smart-account/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/Safe.sol#L265-L334
     function sortUniqueSignatures(
         address _safe,
         bytes memory _signatures,
@@ -145,9 +145,7 @@ library Signatures {
         address owner = extractOwner(dataHash, r, s, v);
         bool isOwner = IGnosisSafe(_safe).isOwner(owner);
         if (!isOwner) {
-            // solhint-disable-next-line no-console
             console.log("---\nSkipping the following signature, which was recovered to a non-owner address %s:", owner);
-            // solhint-disable-next-line no-console
             console.logBytes(abi.encodePacked(r, s, v));
         }
         return (owner, isOwner);
@@ -163,7 +161,6 @@ library Signatures {
         return ecrecover(dataHash, v, r, s);
     }
 
-    // solhint-disable-next-line max-line-length
     // see https://github.com/safe-global/safe-contracts/blob/1ed486bb148fe40c26be58d1b517cec163980027/contracts/common/SignatureDecoder.sol
     function signatureSplit(bytes memory signatures, uint256 pos)
         internal

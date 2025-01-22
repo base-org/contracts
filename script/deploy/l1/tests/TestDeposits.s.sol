@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-// solhint-disable-next-line no-console
+// solhint-disable no-console
 import {console} from "forge-std/console.sol";
 import {Script} from "forge-std/Script.sol";
 
@@ -27,17 +27,14 @@ contract DeployTestContracts is Script {
         ERC20PresetMinterPauser(_l1erc20).approve(_l1StandardBirdge, 1_000_000 ether);
         ERC721PresetMinterPauserAutoId(_l1erc721).approve(_l1erc721Bridge, 0);
 
-        // solhint-disable-next-line no-console
         console.log("Approvals to bridge contracts complete");
 
         L1StandardBridge(_l1StandardBirdge).depositERC20(_l1erc20, _l2erc20, 1_000_000 ether, 200_000, bytes(""));
 
-        // solhint-disable-next-line no-console
         console.log("L1StandardBridge erc20 deposit complete");
 
         L1ERC721Bridge(_l1erc721Bridge).bridgeERC721(_l1erc721, _l2erc721, 0, 200_000, bytes(""));
 
-        // solhint-disable-next-line no-console
         console.log("L1ERC721Bridge erc721 deposit complete");
     }
 }
