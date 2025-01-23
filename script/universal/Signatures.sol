@@ -78,7 +78,7 @@ library Signatures {
      * @param dataHash Hash that is signed.
      * @param threshold Number of signatures required to approve the transaction.
      * @param dynamicOffset Offset to add to the `s` value of any EIP-1271 signature.
-     *                      Can be used to accomodate any additional signatures prepended to the array.
+     *                      Can be used to accommodate any additional signatures prepended to the array.
      *                      If prevalidated signatures were prepended, this should be the length of those signatures.
      */
     function sortUniqueSignatures(
