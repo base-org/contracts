@@ -53,7 +53,7 @@ contract Vetoer1of2 {
     /// @notice Thrown at deployment if `target` is the zero address.
     error TargetCantBeZeroAddress();
 
-    /// @notice Thrown when calling 'veto()' from an unhautorized signer.
+    /// @notice Thrown when calling 'veto()' from an unauthorized signer.
     error SenderIsNotWhitelistedSigner();
 
     //////////////////////////////////////////////////////////////
