@@ -16,7 +16,7 @@ import {L1ERC721Bridge} from "@eth-optimism-bedrock/src/L1/L1ERC721Bridge.sol";
 contract DeployTestContracts is Script {
     function run(
         address _tester,
-        address payable _l1StandardBirdge,
+        address payable _l1StandardBridge,
         address _l1erc721Bridge,
         address payable _l1erc20,
         address _l1erc721,
@@ -24,12 +24,12 @@ contract DeployTestContracts is Script {
         address _l2erc721
     ) public {
         vm.startBroadcast(_tester);
-        ERC20PresetMinterPauser(_l1erc20).approve(_l1StandardBirdge, 1_000_000 ether);
+        ERC20PresetMinterPauser(_l1erc20).approve(_l1StandardBridge, 1_000_000 ether);
         ERC721PresetMinterPauserAutoId(_l1erc721).approve(_l1erc721Bridge, 0);
 
         console.log("Approvals to bridge contracts complete");
 
-        L1StandardBridge(_l1StandardBirdge).depositERC20(_l1erc20, _l2erc20, 1_000_000 ether, 200_000, bytes(""));
+        L1StandardBridge(_l1StandardBridge).depositERC20(_l1erc20, _l2erc20, 1_000_000 ether, 200_000, bytes(""));
 
         console.log("L1StandardBridge erc20 deposit complete");
 
