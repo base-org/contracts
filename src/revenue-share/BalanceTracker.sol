@@ -96,17 +96,17 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
         external
         reinitializer(2)
     {
-        uint256 systemAddresesLength = _systemAddresses.length;
-        require(systemAddresesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
+        uint256 systemAddressesLength = _systemAddresses.length;
+        require(systemAddressesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
         require(
-            systemAddresesLength <= MAX_SYSTEM_ADDRESS_COUNT,
+            systemAddressesLength <= MAX_SYSTEM_ADDRESS_COUNT,
             "BalanceTracker: systemAddresses cannot have a length greater than 20"
         );
         require(
-            systemAddresesLength == _targetBalances.length,
+            systemAddressesLength == _targetBalances.length,
             "BalanceTracker: systemAddresses and targetBalances length must be equal"
         );
-        for (uint256 i; i < systemAddresesLength;) {
+        for (uint256 i; i < systemAddressesLength;) {
             require(_systemAddresses[i] != address(0), "BalanceTracker: systemAddresses cannot contain address(0)");
             require(_targetBalances[i] > 0, "BalanceTracker: targetBalances cannot contain 0 target");
             unchecked {
@@ -125,10 +125,10 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      *
      */
     function processFees() external nonReentrant {
-        uint256 systemAddresesLength = systemAddresses.length;
-        require(systemAddresesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
+        uint256 systemAddressesLength = systemAddresses.length;
+        require(systemAddressesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
         // Refills balances of systems addresses up to their target balances
-        for (uint256 i; i < systemAddresesLength;) {
+        for (uint256 i; i < systemAddressesLength;) {
             refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
             unchecked {
                 i++;
