@@ -61,7 +61,7 @@ contract FeeDisburser {
     uint256 public lastDisbursementTime;
     /**
      * @dev Tracks aggregate net fee revenue which is the sum of sequencer and base fees.
-     * @dev Explicity tracking Net Revenue is required to seperate L1FeeVault initiated
+     * @dev Explicitly tracking Net Revenue is required to separate L1FeeVault initiated
      *      withdrawals from Net Revenue calculations.
      */
     uint256 public netFeeRevenue;
