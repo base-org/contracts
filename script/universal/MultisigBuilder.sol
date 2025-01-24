@@ -148,7 +148,7 @@ abstract contract MultisigBuilder is MultisigBase {
 
         Simulation.StateOverride[] memory overrides = _overrides(_safe);
 
-        bytes memory txData = _execTransationCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
+        bytes memory txData = _execTransactionCalldata(_safe, data, Signatures.genPrevalidatedSignature(msg.sender));
         Simulation.logSimulationLink({_to: _safe, _data: txData, _from: msg.sender, _overrides: overrides});
 
         // Forge simulation of the data logged in the link. If the simulation fails

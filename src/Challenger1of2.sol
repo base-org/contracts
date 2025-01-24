@@ -17,12 +17,12 @@ contract Challenger1of2 {
                             CONSTANTS
     //////////////////////////////////////////////////////////////*/
     /**
-     * @dev The address of Optimism's signer (likely a multisig)
+     * @dev The address of Optimism's signer (likely a multi-signature wallet)
      */
     address public immutable OP_SIGNER;
 
     /**
-     * @dev The address of counter party's signer (likely a multisig)
+     * @dev The address of the counterparty's signer (likely a multi-signature wallet)
      */
     address public immutable OTHER_SIGNER;
 
@@ -48,7 +48,7 @@ contract Challenger1of2 {
     /**
      * @dev Constructor to set the values of the constants.
      * @param _opSigner Address of Optimism signer.
-     * @param _otherSigner Address of counter party signer.
+     * @param _otherSigner Address of counterparty signer.
      * @param _l2OutputOracleProxy Address of the L2OutputOracleProxy contract.
      */
     constructor(address _opSigner, address _otherSigner, address _l2OutputOracleProxy) {
@@ -66,7 +66,7 @@ contract Challenger1of2 {
     //////////////////////////////////////////////////////////////*/
     /**
      * @dev Executes a call as the Challenger (must be called by
-     * Optimism or counter party signer).
+     * Optimism or counterparty signer).
      * @param _data Data for function call.
      */
     function execute(bytes memory _data) external {

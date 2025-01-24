@@ -95,7 +95,7 @@ abstract contract NestedMultisigBuilder is MultisigBase {
      * Step 1.1 (optional)
      * ======
      * Verify the signatures generated from step 1 are valid.
-     * This allow transactions to be pre-signed and stored safely before execution.
+     * This allows transactions to be pre-signed and stored safely before execution.
      */
     function verify(address _signerSafe, bytes memory _signatures) public view {
         IMulticall3.Call3[] memory nestedCalls = _buildCalls();
@@ -204,13 +204,13 @@ abstract contract NestedMultisigBuilder is MultisigBase {
                 )
             )
         );
-        bytes memory approveHashExec = _execTransationCalldata(
+        bytes memory approveHashExec = _execTransactionCalldata(
             _signerSafe, approveHashData, Signatures.genPrevalidatedSignature(MULTICALL3_ADDRESS)
         );
         calls[0] = IMulticall3.Call3({target: _signerSafe, allowFailure: false, callData: approveHashExec});
 
         // simulate the final state changes tx, so that signer can verify the final results
-        bytes memory finalExec = _execTransationCalldata(_safe, _data, Signatures.genPrevalidatedSignature(_signerSafe));
+        bytes memory finalExec = _execTransactionCalldata(_safe, _data, Signatures.genPrevalidatedSignature(_signerSafe));
         calls[1] = IMulticall3.Call3({target: _safe, allowFailure: false, callData: finalExec});
 
         return calls;

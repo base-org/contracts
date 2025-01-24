@@ -103,7 +103,7 @@ abstract contract MultisigBase is CommonBase {
         bytes32 hash = _getTransactionHash(_safe, data);
         _signatures = Signatures.prepareSignatures(_safe, hash, _signatures);
 
-        bytes memory simData = _execTransationCalldata(_safe, data, _signatures);
+        bytes memory simData = _execTransactionCalldata(_safe, data, _signatures);
         Simulation.logSimulationLink({_to: _safe, _from: msg.sender, _data: simData});
 
         vm.startStateDiffRecording();
@@ -147,7 +147,7 @@ abstract contract MultisigBase is CommonBase {
         });
     }
 
-    function _execTransationCalldata(address _safe, bytes memory _data, bytes memory _signatures)
+    function _execTransactionCalldata(address _safe, bytes memory _data, bytes memory _signatures)
         internal
         pure
         returns (bytes memory)
