@@ -34,3 +34,7 @@ checkout-op-commit:
 	git remote add origin https://github.com/ethereum-optimism/optimism.git; \
 	git fetch --depth=1 origin $(OP_COMMIT); \
 	git reset --hard FETCH_HEAD
+
+.PHONY: gas-report
+gas-report:
+	forge build && forge test --ffi -vvv --gas-report
