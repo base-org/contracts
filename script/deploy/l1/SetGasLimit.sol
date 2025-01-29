@@ -5,26 +5,23 @@ import {SystemConfig} from "@eth-optimism-bedrock/src/L1/SystemConfig.sol";
 import {MultisigBuilder, IMulticall3, IGnosisSafe, Simulation} from "../../universal/MultisigBuilder.sol";
 import {Vm} from "forge-std/Vm.sol";
 
-abstract contract SetGasLimitBuilder is MultisigBuilder {
+contract SetGasLimit is MultisigBuilder {
     address internal SYSTEM_CONFIG_OWNER = vm.envAddress("SYSTEM_CONFIG_OWNER");
     address internal L1_SYSTEM_CONFIG = vm.envAddress("L1_SYSTEM_CONFIG_ADDRESS");
-
-    /**
-     * -----------------------------------------------------------
-     * Virtual Functions
-     * -----------------------------------------------------------
-     */
-    function _fromGasLimit() internal view virtual returns (uint64);
-
-    function _toGasLimit() internal view virtual returns (uint64);
-
-    function _nonceOffset() internal view virtual returns (uint64);
 
     /**
      * -----------------------------------------------------------
      * Implemented Functions
      * -----------------------------------------------------------
      */
+    function _fromGasLimit() internal view returns (uint64) {
+        return uint64(vm.envUint("FROM_GAS_LIMIT"));
+    }
+
+    function _toGasLimit() internal view returns (uint64) {
+        return uint64(vm.envUint("TO_GAS_LIMIT"));
+    }
+
     function _postCheck(Vm.AccountAccess[] memory, Simulation.Payload memory) internal view override {
         assert(SystemConfig(L1_SYSTEM_CONFIG).gasLimit() == _toGasLimit());
     }
@@ -43,10 +40,6 @@ abstract contract SetGasLimitBuilder is MultisigBuilder {
 
     function _ownerSafe() internal view override returns (address) {
         return SYSTEM_CONFIG_OWNER;
-    }
-
-    function _getNonce(address safe) internal view override returns (uint256 nonce) {
-        nonce = IGnosisSafe(safe).nonce() + _nonceOffset();
     }
 
     // We need to expect that the gas limit will have been updated previously in our simulation
