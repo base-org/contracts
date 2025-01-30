@@ -13,13 +13,13 @@ import {SafeCall} from "@eth-optimism-bedrock/src/libraries/SafeCall.sol";
  */
 contract BalanceTracker is ReentrancyGuardUpgradeable {
     using Address for address;
+
     /*//////////////////////////////////////////////////////////////
                             Constants
     //////////////////////////////////////////////////////////////*/
     /**
      * @dev The maximum number of system addresses that can be funded.
      */
-
     uint256 public constant MAX_SYSTEM_ADDRESS_COUNT = 20;
 
     /*//////////////////////////////////////////////////////////////
@@ -37,6 +37,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @dev The system addresses being funded.
      */
     address payable[] public systemAddresses;
+
     /**
      * @dev The target balances for system addresses.
      */
@@ -55,6 +56,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
     event ProcessedFunds(
         address indexed _systemAddress, bool indexed _success, uint256 _balanceNeeded, uint256 _balanceSent
     );
+
     /**
      * @dev Emitted when the BalanceTracker attempts to send funds to the profit wallet.
      * @param _profitWallet The address of the profit wallet.
@@ -62,6 +64,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _balanceSent The amount of funds sent to the profit wallet.
      */
     event SentProfit(address indexed _profitWallet, bool indexed _success, uint256 _balanceSent);
+
     /**
      * @dev Emitted when funds are received.
      * @param _sender The address sending funds.
@@ -91,10 +94,11 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @dev Initializes the BalanceTracker contract.
      * @param _systemAddresses The system addresses being funded.
      * @param _targetBalances The target balances for system addresses.
+     * @param _version The version of the contract being initialized. Each new version must be greater than the previous version.
      */
-    function initialize(address payable[] memory _systemAddresses, uint256[] memory _targetBalances)
+    function initialize(address payable[] memory _systemAddresses, uint256[] memory _targetBalances, uint8 _version)
         external
-        reinitializer(2)
+        reinitializer(_version)
     {
         uint256 systemAddresesLength = _systemAddresses.length;
         require(systemAddresesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
@@ -129,7 +133,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
         require(systemAddresesLength > 0, "BalanceTracker: systemAddresses cannot have a length of zero");
         // Refills balances of systems addresses up to their target balances
         for (uint256 i; i < systemAddresesLength;) {
-            refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
+            _refillBalanceIfNeeded(systemAddresses[i], targetBalances[i]);
             unchecked {
                 i++;
             }
@@ -157,7 +161,7 @@ contract BalanceTracker is ReentrancyGuardUpgradeable {
      * @param _systemAddress The system address being funded.
      * @param _targetBalance The target balance for the system address being funded.
      */
-    function refillBalanceIfNeeded(address _systemAddress, uint256 _targetBalance) internal {
+    function _refillBalanceIfNeeded(address _systemAddress, uint256 _targetBalance) internal {
         uint256 systemAddressBalance = _systemAddress.balance;
         if (systemAddressBalance >= _targetBalance) {
             emit ProcessedFunds(_systemAddress, false, 0, 0);

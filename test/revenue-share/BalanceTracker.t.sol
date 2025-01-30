@@ -16,6 +16,7 @@ contract BalanceTrackerTest is CommonTest {
     event SentProfit(address indexed _profitWallet, bool indexed _success, uint256 _balanceSent);
     event ReceivedFunds(address indexed _sender, uint256 _amount);
 
+    uint8 constant VERSION = 1;
     uint256 constant MAX_SYSTEM_ADDRESS_COUNT = 20;
     uint256 constant INITIAL_BALANCE_TRACKER_BALANCE = 2_000 ether;
 
@@ -58,7 +59,7 @@ contract BalanceTrackerTest is CommonTest {
     function test_initializer_fail_systemAddresses_zeroLength() external {
         delete systemAddresses;
         vm.expectRevert("BalanceTracker: systemAddresses cannot have a length of zero");
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
     }
 
     function test_initializer_fail_systemAddresses_greaterThanMaxLength() external {
@@ -67,32 +68,32 @@ contract BalanceTrackerTest is CommonTest {
         }
 
         vm.expectRevert("BalanceTracker: systemAddresses cannot have a length greater than 20");
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
     }
 
     function test_initializer_fail_systemAddresses_lengthNotEqualToTargetBalancesLength() external {
         systemAddresses.push(payable(address(0)));
 
         vm.expectRevert("BalanceTracker: systemAddresses and targetBalances length must be equal");
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
     }
 
     function test_initializer_fail_systemAddresses_containsZeroAddress() external {
         systemAddresses[1] = payable(address(0));
 
         vm.expectRevert("BalanceTracker: systemAddresses cannot contain address(0)");
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
     }
 
     function test_initializer_fail_targetBalances_containsZero() external {
         targetBalances[1] = ZERO_VALUE;
 
         vm.expectRevert("BalanceTracker: targetBalances cannot contain 0 target");
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
     }
 
     function test_initializer_success() external {
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
 
         assertEq(balanceTracker.systemAddresses(0), systemAddresses[0]);
         assertEq(balanceTracker.systemAddresses(1), systemAddresses[1]);
@@ -105,7 +106,7 @@ contract BalanceTrackerTest is CommonTest {
         uint256 expectedProfitWalletBalance = INITIAL_BALANCE_TRACKER_BALANCE - l2OutputProposerTargetBalance;
         address payable reentrancySystemAddress = payable(address(new ReenterProcessFees()));
         systemAddresses[0] = reentrancySystemAddress;
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
 
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ProcessedFunds(reentrancySystemAddress, false, batchSenderTargetBalance, batchSenderTargetBalance);
@@ -131,7 +132,7 @@ contract BalanceTrackerTest is CommonTest {
     function test_processFees_success_continuesWhenSystemAddressReverts() external {
         vm.deal(address(balanceTracker), INITIAL_BALANCE_TRACKER_BALANCE);
         uint256 expectedProfitWalletBalance = INITIAL_BALANCE_TRACKER_BALANCE - l2OutputProposerTargetBalance;
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
         vm.mockCallRevert(batchSender, bytes(""), abi.encode("revert message"));
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ProcessedFunds(batchSender, false, batchSenderTargetBalance, batchSenderTargetBalance);
@@ -152,7 +153,7 @@ contract BalanceTrackerTest is CommonTest {
         vm.deal(address(balanceTracker), INITIAL_BALANCE_TRACKER_BALANCE);
         uint256 expectedProfitWalletBalance =
             INITIAL_BALANCE_TRACKER_BALANCE - batchSenderTargetBalance - l2OutputProposerTargetBalance;
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ProcessedFunds(batchSender, true, batchSenderTargetBalance, batchSenderTargetBalance);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
@@ -169,7 +170,7 @@ contract BalanceTrackerTest is CommonTest {
     }
 
     function test_processFees_success_noFunds() external {
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ProcessedFunds(batchSender, true, batchSenderTargetBalance, ZERO_VALUE);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
@@ -188,7 +189,7 @@ contract BalanceTrackerTest is CommonTest {
     function test_processFees_success_partialFunds() external {
         uint256 partialBalanceTrackerBalance = INITIAL_BALANCE_TRACKER_BALANCE / 3;
         vm.deal(address(balanceTracker), partialBalanceTrackerBalance);
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ProcessedFunds(batchSender, true, batchSenderTargetBalance, partialBalanceTrackerBalance);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
@@ -208,7 +209,7 @@ contract BalanceTrackerTest is CommonTest {
         vm.deal(address(balanceTracker), INITIAL_BALANCE_TRACKER_BALANCE);
         vm.deal(batchSender, batchSenderTargetBalance);
         vm.deal(l2OutputProposer, l2OutputProposerTargetBalance);
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
         emit ProcessedFunds(batchSender, false, ZERO_VALUE, ZERO_VALUE);
         vm.expectEmit(true, true, true, true, address(balanceTracker));
@@ -232,7 +233,7 @@ contract BalanceTrackerTest is CommonTest {
             systemAddresses.push(payable(address(uint160(i + 100))));
             targetBalances.push(l2OutputProposerTargetBalance);
         }
-        balanceTracker.initialize(systemAddresses, targetBalances);
+        balanceTracker.initialize(systemAddresses, targetBalances, VERSION);
 
         balanceTracker.processFees();
 
